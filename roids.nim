@@ -181,6 +181,14 @@ msgImpl(Body, impulse) do (f: TVector2d):
     vector(f), vectorZero)
 
 
+var collisionTypes = initTable[string, cuint](64)
+var next = 1.cuint
+proc ct* (s: string): cuint = 
+  if not collisionTypes.hasKey(s):
+    collisionTypes[s] = next
+    next += 1
+  return collisionTypes[s]
+
 type
   Sensor* = object
     shape: cp.PShape
@@ -188,10 +196,15 @@ Sensor.requiresComponent Body
 
 msgImpl(Sensor, unserialize) do (J: PJsonNode):
   if j.hasKey("Sensor"):
+    let j = j["Sensor"]
     var radius: float
-    radius.getFloat j["Sensor"], "radius", 500.0
+    radius.getFloat j, "radius", 500.0
     entity[sensor].shape = newCircleShape(entity[Body].b, radius, vectorZero)
     entity[sensor].shape.setSensor true
+    
+    if j.hasKey("collision-type"):
+      entity[sensor].shape.setCollisionType(ct(j["collision-type"].str))
+
 msgImpl(Sensor, addToSpace) do (S: PSpace):
   discard s.addShape( entity[sensor].shape)
 
@@ -325,7 +338,7 @@ proc randomFromGroup* (m: var TGameData; group: string): string =
     return m.groups.mget(group)[random(len)]
     
 
-proc loadGameData* (f: string): TGameData =
+proc loadGameData* (f = "ships.json"): TGameData =
   result.j = json.parseFile(f)
   result.entities = initTable[string,TJent](64) 
   result.groups = initTable[string,seq[string]](64)
@@ -525,7 +538,7 @@ method handleEvent* (gs: PRoomGS; evt: var TEvent) =
     of key_P:
       gs.paused.toggle
     of key_R:
-      gamedata = load_game_data("ships.json")
+      gamedata = load_game_data()
       let r = newRoom(gamedata.j.rooms.duel1)
       g.replace newRoomGS(r)
     of key_D:
@@ -589,7 +602,7 @@ method draw * (w: PRenderWindow; gs: PRoomGS) =
 
   w.draw gs.gui
 
-gamedata = loadGamedata("ships.json")
+gamedata = loadGamedata()
 
 g = newGod(videoMOde(800,600,32))
 g.replace newRoomGS(newRoom(gameData.j.rooms.duel1))
