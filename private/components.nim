@@ -52,6 +52,8 @@ proc toFloat* (n: PJsonNode): float =
     case n.str
     of "random":
       result = random(1.0)
+    of "infinity":
+      result = 1/0
   of jArray:
     case n[0].str
     of "random":
@@ -105,6 +107,19 @@ proc getInt* (result:var int; j:PJsonNode; key:string; default = 0) =
     when defined(Debug):
       echo "Missing int key ", key
     result = default
+
+
+import tables
+
+var collisionTypes = initTable[string, cuint](64)
+var next = 0.cuint
+proc ct* (s: string): cuint = 
+  if not collisionTypes.hasKey(s):
+    collisionTypes[s] = next
+    next += 1
+  return collisionTypes[s]
+discard ct("default")
+
 
 import fowltek/entitty,fowltek/idgen
 
@@ -201,22 +216,40 @@ msgImpl(Body, impulse) do (f: TVector2d):
   entity[Body].b.applyImpulse(
     vector(f), vectorZero)
 
+proc thrustFwd* {.unicast.}
+proc thrustBckwd* {.unicast.}
+proc turnRight* {.unicast.}
+proc turnLeft* {.unicast.}
+
+msgImpl(Body, thrustFwd) do:
+  entity[body].b.applyImpulse(
+    entity[Body].b.getAngle.vectorForAngle,
+    vectorZero
+  )
+msgImpl(Body, thrustBckwd) do:
+  entity[body].b.applyImpulse(
+    -entity[body].b.getAngle.vectorForAngle,
+    vectorZero
+  )
+msgImpl(Body,turnLeft) do:
+  entity[body].b.setTorque(2.0)
+msgImpl(Body,turnRight)do:
+  entity[body].b.setTorque(-2.0)
 
 type InputController* = object
-  frwd, bckwd, turnLeft, turnRight: bool
+  frwd*, bckwd*, turnLeft*, turnRight*: bool
 
 msgImpl(InputController, update) do (dt: float) :
   let ic = entity[InputController].addr
   if ic.frwd:
-    nil
+    entity.thrustFwd
+  elif ic.bckwd:
+    entity.thrustBckwd
+  if ic.turnLeft:
+    entity.turnLeft
+  elif ic.turnRight:
+    entity.turnRight
 
-var collisionTypes = initTable[string, cuint](64)
-var next = 1.cuint
-proc ct* (s: string): cuint = 
-  if not collisionTypes.hasKey(s):
-    collisionTypes[s] = next
-    next += 1
-  return collisionTypes[s]
 
 type
   GravitySensor* = object
@@ -375,6 +408,84 @@ msgImpl(CollisionHandler, unserialize) do (J: PJsonNode):
       let p = point2d(j["position"])
       entity[collisionHandler].f = proc(self,other: PEntity) =
         other.setPos p
+
+
+
+
+import private/room_interface
+
+type
+  TRCC_CB* = proc(x: PEntity; r: PRoom)
+  RCC* = object
+    commands*: seq[TRCC_CB]
+
+proc scheduleRC* (f: TRCC_CB) {.unicast.}
+
+RCC.setInitializer do (x: PEntity):
+  x[RCC].commands.newSeq 0
+  
+proc clear* (R: var RCC)= 
+  R.commands.setLen 0
+
+msgImpl(RCC,schedule_rc) do (f: TRCC_CB):
+  entity[RCC].commands.add f
+
+proc execRCs* (ent: PEntity; r: PRoom) =
+  if ent.hasComponent(RCC):
+    for c in ent[RCC].commands:
+      c(ent, r)
+    ent[RCC].clear
+
+
+
+type
+  Emitter* = object
+    delay*: float
+    cooldown*: float
+    emits*: PJsonNode
+    mode*: EmitterMode
+  EmitterMode* {.pure.}=enum
+    auto, manual
+
+msgImpl(Emitter,unserialize) do (J: PJsonNode):
+  if j.hasKey("Emitter") and j["Emitter"].kind == jObject:
+    let j = j["Emitter"]
+    if j.hasKey("delay-ms"):
+      entity[Emitter].delay = j["delay-ms"].num.int / 1000
+    elif j.hasKey("delay"):
+      entity[Emitter].delay.getFloat j,"delay", 0.250
+
+    if j.hasKey"emits":
+      entity[Emitter].emits = j["emits"]
+    if j.hasKey"mode":
+      if j["mode"].str == "manual":
+        entity[Emitter].mode = EmitterMode.manual
+      else:
+        entity[Emitter].mode = EmitterMode.auto
+
+
+type
+  Position* = object
+    p: TPoint2d
+msgImpl(Position,setPos) do (p: TPoint2d):
+  entity[position].p = p
+msgImpl(Position,getPos) do -> TPoint2d:
+  entity[position].p
+msgImpl(Position,unserialize) do (J: PJsonNode):
+  if j.hasKey("Position") and j["Position"].kind == jArray:
+    entity[Position].p = point2d(j["Position"])
+    echo entity[Position].p
+
+
+type  
+  Orientation* = object
+    angle: float
+msgImpl(Orientation,getAngle) do -> float:
+  entity[Orientation].angle
+
+
+
+
 
 
 

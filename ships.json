@@ -29,7 +29,7 @@
       "Body": { "mass": 2.2, "shape": "circle", "radius": 26,"elasticity":0.3 }
       
     },"hornet":{
-      "RollSprite": { "file": "hornet_54x54.png" },
+      "RollSprite": { "file": "terran/hornet_54x54.png" },
       "Body": { "mass": 3.0, "shape": "circle", "radius": 18 },
       "InputController": true
       
@@ -39,13 +39,19 @@
       
     },"wormhole":{
       "AnimatedSprite": { "file": "wormhole_192x192.png", "delay": 0.1 },
-      "Body": { "mass": 10000, "shape": "circle", "radius": 5,"elasticity":0.3 },
+      "Body": { "mass": "infinity", "shape": "circle", "radius": 5,"elasticity":0.3 },
       "GravitySensor" : { "radius": 500, "force": 80000 } ,
-      "CollisionHandler": {
-        "action": "warp", "position": [30,30]
+      "CollisionHandler": {"action": "warp", "position": [30,30]}
+    },"asteroid creator":{
+      "Components": ["Position", "Orientation"],
+      "Emitter": {
+        "emits": ["group", "asteroids"],
+        "delay-ms": 2000
       }
     }
+    
   },
+  "required-components": [ "RCC", "Named" ],
   "groups": {
     "asteroids": ["ast0","ast1","ast2","ast3","ast4","ast5","ast6","ast7","ast8","ast9"]
   
@@ -56,6 +62,12 @@
         [20, 20], [980, 20], [980, 980], [20, 980]
       ],
       "objects": [
+        { "obj": "asteroid creator",
+          "extra-data": {
+            "Position": [200,200],
+            "Orientation": ["degrees", 0]
+          }
+        },
         { "obj": "wormhole" ,
           "extra-data": {
             "initial-position": [500,500]
@@ -67,12 +79,12 @@
             "initial-impulse": ["mul_f", ["direction-degrees", 90], 1000.0 ] 
           }   
         },
-        { "group": "asteroids", "count": 3,  
+        { "group": "asteroids", "count": 0,  
           "extra-data": {
             "initial-position": [200,200],
             "initial-impulse": ["mul_f", "random-direction", 300.0] }
         },
-        { "group": "asteroids", "count": 2, 
+        { "group": "asteroids", "count": 0, 
           "extra-data": {
             "initial-position": [200,210],
             "initial-impulse": ["mul_f", "random-direction", 90.0 ]

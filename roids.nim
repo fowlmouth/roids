@@ -1,45 +1,15 @@
 
-import gsm, sfgui, csfml,csfml_colors
+import private/gsm, private/sfgui, 
+  private/components, private/gamedat, private/room, private/room_interface,
+  fowltek/entitty, private/debug_draw,
+  csfml,csfml_colors, math, json
 import chipmunk as cp
-import math,json
-
 import basic2d except `$`
 
-import components, gamedat, room
 randomize()
 
 proc distance*(a, b: TVector): float {.inline.} =
   return sqrt(pow(a.x - b.x, 2.0) + pow(a.y - b.y, 2.0))
-proc debugDraw* (w: PRenderWindow; shape: cp.PShape) =
-  case shape.klass.kind
-  of cp_circle_shape:
-    var c {.global.} = newCircleShape(1.0, 30)
-    c.setPosition shape.getBody.p.vec2f
-    let r = shape.getCircleRadius
-    c.setRadius r
-    c.setOrigin vec2f(r,r)
-    var color = white
-    if shape.getSensor:
-      color.a = 30
-      c.setOutlineThickness 1.0
-    else:
-      color.a = 70
-      c.setOutlineThickness 0.0
-    c.setFillColor(color)
-    w.draw c
-  of cp_segment_shape:
-    var s {.global.} = newVertexArray(csfml.Lines, 2)
-    s[0].position = shape.getSegmentA.vec2f
-    s[1].position = shape.getSegmentB.vec2f
-    w.draw s
-  else:
-    discard
-
-proc debugDraw* (w: PRenderWindow; space: PSpace) =
-  proc draw_shape (S: cp.PShape; data: PRenderWindow) {.cdecl.}=
-    debugDraw(data, s)
-
-  space.eachShape(cast[TSpaceShapeIteratorFunc](draw_shape), cast[pointer](w))
 
 import fowltek/maybe_t
 type
@@ -62,11 +32,14 @@ type
     else:
       watching: TMaybe[int]
 
+proc unspec* (r: PRoomGS; ent: int) =
+  r.player = TPlayer(mode: Playing, ent_id: ent)
+proc spec* (r: PRoomGS) =
+  r.player = TPlayer(mode: Spectator, watching: nothing[int]())
 
 proc newRoomGS* (r: PRoom) : PGameState =
   let res = PRoomGS(room: r)
-  
-  res.player = TPlayer(mode: Spectator)
+  res.spec
   
   var main_w = newCollection()
   
@@ -93,7 +66,7 @@ proc rightClickedOn* (gs: PRoomGS; x,y: float; ent_id: int) =
   var u: PUpdateable
   u = newUpdateable(newTextWidget("velocity" )) do:
     u.w.PTextWidget.setText("Vel "& $gs.room.getEnt(ent_id).getVel )
-  rcm.add u
+  #rcm.add u
   
   rcm.setPos x,y
   gs.removeRCM
@@ -134,7 +107,8 @@ method handleEvent* (gs: PRoomGS; evt: var TEvent) =
       of key_F12:
         var ent = gameData.newEnt("hornet")
         ent.setPos point2d(100,100)
-        gs.room.add_ent ent
+        let id = gs.room.add_ent(ent)
+        gs.unspec(id)
       else:
         nil
     
@@ -157,6 +131,8 @@ method handleEvent* (gs: PRoomGS; evt: var TEvent) =
         )
         IF ents.len == 1:
           gs.rightClickedOn(m.x.float, m.y.float, ents[0])
+        else:
+          echo "ents.len = ", ents.len
       of MouseLeft:
       
         var ent = gameData.newEnt(gameData.randomFromGroup("asteroids"))
@@ -167,8 +143,23 @@ method handleEvent* (gs: PRoomGS; evt: var TEvent) =
         discard
     else: discard
   of Playing:
-    nil
-  
+    
+    if evt.kind in {evtKeypressed, evtKeyreleased}:
+      let 
+        ic = gs.room.getEnt(gs.player.ent_id).get(InputController).addr
+        kp = evt.kind == evtKeyPressed
+      
+      case evt.key.code
+      of KeyLeft:
+        ic.turnLeft = kp
+      of keyRight:
+        ic.turnRight = kp
+      of keyUP:
+        ic.frwd = kp
+      of keyDOWN:
+        ic.bckwd = kp
+      else:
+        nil
 
 method update* (gs: PRoomGS; dt: float) =
   gs.gui.update dt
@@ -176,16 +167,23 @@ method update* (gs: PRoomGS; dt: float) =
     gs.room.update dt
 
 method draw * (w: PRenderWindow; gs: PRoomGS) =
+  if gs.camera.isNil:
+    gs.camera = w.getView.copy
+  
+  if gs.player.mode == Playing:
+    gs.camera.setCenter vec2f(gs.room.getEnt(gs.player.ent_id).getPos)
+  elif gs.player.watching:
+    echo "watching ", gs.player.watching
+    gs.camera.setCenter vec2f(gs.room.getEnt(gs.player.watching.val).getPos)
+  
+  w.setView gs.camera
+  
   type PTy = ptr tuple[w: PRenderWindow; gs: PRoomGS]
   
   proc draw_shape (s: cp.pshape; data: PTy) {.cdecl.} =
     let eid = cast[int](s.getUserdata)
     if eid != 0:
       data.gs.room.getEnt(eid).draw data.w
-  
-  if gs.camera.isNil:
-    gs.camera = w.getView.copy
-  w.setView gs.camera
   
   var data = (w: w, gs: gs)
   gs.room.space.eachShape(
@@ -196,6 +194,7 @@ method draw * (w: PRenderWindow; gs: PRoomGS) =
     w.debugDraw gs.room.space
 
   w.setView w.getDefaultView
+  
   w.draw gs.gui
 
 gamedata = loadGamedata()

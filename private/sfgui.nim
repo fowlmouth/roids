@@ -163,7 +163,8 @@ method setPos* (w: PHideable; x,y: float) =
 method handleClick* (w: PHideable; x,y: int): bool = 
  if w.visible:
   result = w.w.handleClick(x,y)
-
+method update* (g: PHideable; dt: float) =
+ if g.visible: g.w.update dt
 
 type
   PUpdateable* = ref object of PWidget

@@ -1,34 +1,30 @@
 
 import fowltek/entitty, fowltek/idgen
-import components, gamedat, basic2d, math,json
+import private/components, private/gamedat, basic2d, math,json
 import csfml except pshape
 import chipmunk as cp
+import private/room_interface
 
-type
-  PRoom* = ref object
-    space*: PSpace
-    ents: seq[TEntity]
-    ent_id: TIDgen[int]
-    activeEnts: seq[int]
+var gamedata*: TGamedata
 
-var
-  gamedata*: TGameData
 
 proc get_ent* (r: PRoom; id: int): PEntity = 
   r.ents[id]
+
+proc add_ent* (r: PRoom; e: TEntity): int {.discardable.} =
+  result = r.ent_id.get
+  if r.ents.len < result+1: r.ents.setLen result+1
+  r.ents[result] = e
+  r.getEnt(result).id = result
+  r.getEnt(result).addToSpace r.space
+  r.activeEnts.add result
+
 proc destroy_ent* (r: PRoom; id: int) =
   r.getEnt(id).removeFromSpace(r.space)
   destroy r.getEnt(id)
   r.activeEnts.del r.activeEnts.find(id)
   r.ent_id.release id
 
-proc add_ent* (r: PRoom; e: TEntity) =
-  let id = r.ent_id.get
-  if r.ents.len < id+1: r.ents.setLen id+1
-  r.ents[id] = e
-  r.ents[id].id = id
-  r.ents[id].addToSpace r.space
-  r.activeEnts.add id
 
 proc add_asteroid* (r: PRoom; p: TPoint2d) =
   var ent = newEnt(gamedata, gamedata.randomFromGroup("asteroids"))
@@ -57,7 +53,7 @@ proc call_collision_cb (arb: PArbiter; space: PSpace; data: pointer){.cdecl.}=
   if e1 == 0 or e2 == 0: return
   space.room.getEnt(e1).handleCollision(space.room.getEnt(e2))
   space.room.getEnt(e2).handleCollision(space.room.getEnt(e1))
-  
+
 proc handle_gravity (arb: PArbiter; space: PSpace; data: pointer): bool {.cdecl.} =
   var shape_a, shape_b : cp.PShape
   arb.getShapes shape_a,shape_b
@@ -127,8 +123,24 @@ proc newRoom* (j: PJsonNode) : Proom =
 
 proc update* (r: PRoom; dt: float) =
   for id in r.activeEnts:
-    r.ents[id].update dt
+    r.getEnt(id).update dt
+    r.getEnt(id).execRCs r
   r.space.step dt
   proc reset_forces (b: PBody; d: pointer){.cdecl.} =
-    b.resetForces()
+    b.resetForces
   r.space.eachBody(reset_forces, nil)
+
+
+msgImpl(Emitter,update) do (dt: float):
+  let e = entity[emitter].addr
+  e.cooldown -= dt
+  if e.cooldown <= 0:
+    e.cooldown = 0
+    if e.mode == emitterMode.auto :
+      entity.scheduleRC do(x: PEntity; r: PRoom):
+        # schedule an entity to be created
+        var ent = gameData.newEnt(x[emitter].emits)
+        ent.setPos x.getPos
+        r.add_ent ent
+        x[emitter].cooldown = x[emitter].delay
+

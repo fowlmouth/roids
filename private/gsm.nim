@@ -1,4 +1,4 @@
-import csfml, csfml_colors, sfgui
+import csfml, csfml_colors, private/ sfgui
 export csfml, sfgui
 type
   PGameState* = ref object of TObject
