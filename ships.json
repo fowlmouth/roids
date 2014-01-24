@@ -2,36 +2,36 @@
   "entities": {
     "ast0": {
       "AnimatedSprite": { "file": "Rock24a_24x24.png" , "delay": 0.1 },
-      "Body": { "mass": 3.0, "shape": "circle", "radius": 10 }
+      "Body": { "mass": 1.4, "shape": "circle", "radius": 10,"elasticity":0.3 }
     },"ast1":{
       "AnimatedSprite": { "file": "Rock24b_24x24.png" , "delay": 0.1 },
-      "Body": { "mass": 3.0, "shape": "circle", "radius": 10 }
+      "Body": { "mass": 1.4, "shape": "circle", "radius": 10,"elasticity":0.3 }
     },"ast2":{
       "AnimatedSprite": { "file": "Rock32a_32x32.png" , "delay": 0.1 },
-      "Body": { "mass": 3.0, "shape": "circle", "radius": 18 }
+      "Body": { "mass": 1.6, "shape": "circle", "radius": 18,"elasticity":0.3 }
     },"ast3":{
       "AnimatedSprite": { "file": "Rock48a_48x48.png" , "delay": 0.1 },
-      "Body": { "mass": 3.0, "shape": "circle", "radius": 18 }
+      "Body": { "mass": 1.8, "shape": "circle", "radius": 18,"elasticity":0.3 }
     },"ast4":{
       "AnimatedSprite": { "file": "Rock48b_48x48.png" , "delay": 0.1 },
-      "Body": { "mass": 3.0, "shape": "circle", "radius": 18 }
+      "Body": { "mass": 1.8, "shape": "circle", "radius": 18,"elasticity":0.3 }
     },"ast5":{
       "AnimatedSprite": { "file": "Rock48c_48x48.png" , "delay": 0.1 },
-      "Body": { "mass": 3.0, "shape": "circle", "radius": 18 }
+      "Body": { "mass": 1.8, "shape": "circle", "radius": 18,"elasticity":0.3 }
     },"ast6":{
       "AnimatedSprite": { "file": "Rock64a_64x64.png" , "delay": 0.1 },
-      "Body": { "mass": 3.0, "shape": "circle", "radius": 26 }
+      "Body": { "mass": 2.1, "shape": "circle", "radius": 26,"elasticity":0.3 }
     },"ast7":{
       "AnimatedSprite": { "file": "Rock64b_64x64.png" , "delay": 0.1 },
-      "Body": { "mass": 3.0, "shape": "circle", "radius": 26 }
+      "Body": { "mass": 2.2, "shape": "circle", "radius": 26,"elasticity":0.3 }
     },"ast8":{
       "AnimatedSprite": { "file": "Rock64c_64x64.png" , "delay": 0.1 },
-      "Body": { "mass": 3.0, "shape": "circle", "radius": 26 }
+      "Body": { "mass": 2.2, "shape": "circle", "radius": 26,"elasticity":0.3 }
       
     },"hornet":{
       "RollSprite": { "file": "hornet_54x54.png" },
       "Body": { "mass": 3.0, "shape": "circle", "radius": 18 },
-      "Emitter": "bullet1"
+      "InputController": true
       
     },"bullet1":{
       "AnimatedSprite": { "file": "EbulletA_12x12.png", "delay": 0.1 },
@@ -39,38 +39,46 @@
       
     },"wormhole":{
       "AnimatedSprite": { "file": "wormhole_192x192.png", "delay": 0.1 },
-      "Body": { "mass": 10000, "shape": "circle", "radius": 5 },
-      "Sensor" : { "radius": 300, "collision-type": "gravity" } 
+      "Body": { "mass": 10000, "shape": "circle", "radius": 5,"elasticity":0.3 },
+      "GravitySensor" : { "radius": 500, "force": 80000 } ,
+      "CollisionHandler": {
+        "action": "warp", "position": [30,30]
+      }
     }
   },
   "groups": {
     "asteroids": ["ast0","ast1","ast2","ast3","ast4","ast5","ast6","ast7","ast8","ast9"]
+  
   },
   "rooms": {
     "duel1": {
       "bounds": [
-        [20, 20], [780, 20], [780, 580], [20, 580]
+        [20, 20], [980, 20], [980, 980], [20, 980]
       ],
       "objects": [
-        { "obj": "wormhole", "pos": [400, 300],
+        { "obj": "wormhole" ,
           "extra-data": {
+            "initial-position": [500,500]
           }
         },
-        { "obj": "bullet1", "pos": [500,500],
+        { "obj": "bullet1", 
           "extra-data": {
-            "initial-impulse": ["mul_f", ["direction-degrees", 90], 200.0 ] 
+            "initial-position": [500,500],
+            "initial-impulse": ["mul_f", ["direction-degrees", 90], 1000.0 ] 
           }   
         },
-        { "group": "asteroids", "count": 50, "pos": [200,200], 
-          "extra-data": { 
+        { "group": "asteroids", "count": 3,  
+          "extra-data": {
+            "initial-position": [200,200],
             "initial-impulse": ["mul_f", "random-direction", 300.0] }
         },
-        { "group": "asteroids", "count": 2, "pos": [200,210],
+        { "group": "asteroids", "count": 2, 
           "extra-data": {
+            "initial-position": [200,210],
             "initial-impulse": ["mul_f", "random-direction", 90.0 ]
           }
         }
       ]
-    }
+    },
   }
 }
