@@ -11,10 +11,10 @@ proc debugDrawShape (shape: cp.PShape; w: PRenderWindow){.cdecl.}=
     c.setOrigin vec2f(r,r)
     var color = white
     if shape.getSensor:
-      color.a = 30
+      color.a = 10
       c.setOutlineThickness 1.0
     else:
-      color.a = 70
+      color.a = 30
       c.setOutlineThickness 0.0
     c.setFillColor(color)
     w.draw c

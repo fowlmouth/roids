@@ -10,6 +10,7 @@
       "turnleft":["key","left"],
       "fireemitter":["key","lcontrol"],
       
+      "spec": ["key", "f12"]
     }
   }
 }

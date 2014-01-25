@@ -29,6 +29,7 @@ type
       ent_id: int
     else:
       watching: TMaybe[int]
+      input: InputController
     dat: PPlayerData
 
   PPlayerData* = ref object
@@ -37,7 +38,7 @@ type
 
   TEvtResponder = proc (evt: var TEvent; active: var bool): bool
   TControlSet* = object
-    forward, backward, turnright, turnleft, fireemitter: TEvtResponder
+    forward, backward, turnright, turnleft, fireemitter, spec: TEvtResponder
 
 proc getResponder (j: PJsonNode): TEvtResponder =
   result = proc(evt: var TEvent; active: var bool):bool = false
@@ -58,16 +59,19 @@ proc loadPlayer* (f: string): PPlayerData =
 
   let controls = j["control-schemes"][j["controls"].str]
   template sc (c): stmt =
+    # result.controller.forward = getResponder(controls["forward"])
     result.controller.c = getResponder(controls[astToStr(c)])
   sc forward
   sc backward
   sc turnright
   sc turnleft
   sc fireemitter 
+  sc spec
 
 
 proc `()` (key: string; n: PJsonNode): PJsonNode {.delegator.}= n[key]
 
+proc isSpec* (p: TPlayer): bool = p.mode == Spectator
 proc unspec* (r: PRoomGS; ent: int) =
   r.player = TPlayer(dat: r.player.dat, mode: Playing, ent_id: ent)
 proc spec* (r: PRoomGS) =
@@ -79,10 +83,14 @@ proc newRoomGS* (r: PRoom; playerDat = loadPlayer("player.json")) : PGameState =
   res.spec
   
   var main_w = newCollection()
-  
   res.gui = main_w
   
   return res
+proc newRoomGS* (r: PJsonNode; playerDat = loadPlayer("player.json")): PGameState =
+  result = newRoomGS(newRoom(r), playerDat)
+  if r.hasKey("start-camera"):
+    result.PRoomGS.camera = g.window.getDefaultView.copy
+    result.PRoomGS.camera.setCenter vec2f(r["start-camera"].point2d)
 
 proc removeRCM (gs: PRoomGS) =
   if not gs.rcm.isNil:
@@ -95,9 +103,9 @@ proc rightClickedOn* (gs: PRoomGS; p: TVector2i; ent_id: int) =
     gs.room.destroyEnt(ent_id)
     gs.removeRCM
   )
-  rcm.add(newButton("impulse") do:
-    gs.addingImpulse = just(vector2d(p.x.float, p.y.float))
-  )
+  #rcm.add(newButton("impulse") do:
+  #  gs.addingImpulse = just(vector2d(p.x.float, p.y.float))
+  #)
   if gs.player.mode == Spectator:
     rcm.add(newButton("spectate") do:
       gs.player.watching = just(ent_id)
@@ -116,8 +124,25 @@ method handleEvent* (gs: PRoomGS; evt: var TEvent) =
   if gs.gui.dispatch(evt):
     return
 
-  case gs.player.mode
-  of Spectator:
+  # see if evt is handled by responders for controller
+  let 
+    c = gs.player.dat.controller.addr
+  var ic: ptr InputController
+  if gs.player.isSpec:
+    ic = gs.player.input.addr
+  else:
+    ic = gs.room.getEnt(gs.player.ent_id)[InputController].addr
+  
+  template chkInput(x): stmt =
+    if c.x(evt, ic.x): return
+  chkInput(spec)
+  chkInput(forward)
+  chkInput(backward)
+  chkInput(turnright)
+  chkInput(turnleft)
+  chkInput(fireemitter)
+  
+  if gs.player.isSpec:
     case evt.kind
     of evtKeyPressed:
       case evt.key.code
@@ -126,8 +151,7 @@ method handleEvent* (gs: PRoomGS; evt: var TEvent) =
         gs.paused.toggle
       of key_R:
         gamedata = load_game_data()
-        let r = newRoom(gamedata.j.rooms.duel1)
-        g.replace newRoomGS(r)
+        g.replace newRoomGS(gamedata.j.rooms[gamedata.j["first-room"].str])
       of key_D:
         gs.debugDrawEnabled = not gs.debugDrawEnabled
       of key_F12:
@@ -168,54 +192,21 @@ method handleEvent* (gs: PRoomGS; evt: var TEvent) =
       else:
         discard
     else: discard
-  of Playing:
-    # see if evt is handled by responders for controller
-    let 
-      c = gs.player.dat.controller.addr
-      ic = gs.room.getEnt(gs.player.ent_id)[InputController].addr
-    
-    template chkInput(x): stmt =
-      if c.x(evt, ic.x): return
-    chkInput(forward)
-    chkInput(backward)
-    chkInput(turnright)
-    chkInput(turnleft)
-    chkInput(fireemitter)
-    discard """
-    if gs.room.player.dat.controller.forward(evt)
-    
-    if evt.kind in {evtKeypressed, evtKeyreleased} and gs.room.getEnt(gs.player.ent_id).hasComponent(InputController):
-      let 
-        ic = gs.room.getEnt(gs.player.ent_id)[InputController].addr
-        kp = evt.kind == evtKeyPressed
-      
-      case evt.key.code
-      of KeyLeft:
-        ic.turnLeft = kp
-      of keyRight:
-        ic.turnRight = kp
-      of keyUP:
-        ic.forward = kp
-      of keyDOWN:
-        ic.backward= kp
-      of keyLControl:
-        ic.fireemitter = kp
-      else:
-        nil
-   """
 
 method update* (gs: PRoomGS; dt: float) =
   if not gs.paused:
-    if gs.player.mode == Spectator:
+    if gs.player.isSpec and not gs.camera.isNil:
       const cameraSpeed = 16
-      if is_keyPressed(keyRight):
-        gs.camera.move vec2f(cameraSpeed, 0)
-      elif is_keyPressed(KeyLeft):
-        gs.camera.move vec2f(-cameraSpeed, 0)
-      if is_keyPressed(KeyUP):
-        gs.camera.move vec2f(0,-cameraSpeed)
-      elif is_keyPressed(keyDOWN):
-        gs.camera.move vec2f(0,cameraSpeed)
+      var offs: TVector2f
+      if gs.player.input.turnRight:
+        offs.x += cameraSpeed
+      elif gs.player.input.turnLeft:
+        offs.x -= cameraSpeed
+      if gs.player.input.forward:
+        offs.y -= cameraSpeed
+      elif gs.player.input.backward:
+        offs.y += cameraSpeed
+      gs.camera.move offs
 
     gs.room.update dt
 

@@ -1,7 +1,7 @@
 
 import private/gsm, private/sfgui, 
   private/components, private/gamedat, private/room, private/room_interface,
-  fowltek/entitty, private/gamestates, private/player_data,
+  fowltek/entitty, private/gamestates,
   csfml,csfml_colors, math, json
 
 randomize()

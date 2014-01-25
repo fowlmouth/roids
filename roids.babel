@@ -1,0 +1,10 @@
+[package]
+name:"roids"
+license:"MIT"
+version:"0.1"
+author:"fowl"
+description:"not for human consumption"
+bin: "roids"
+
+[deps]
+requires: "fowltek >= 0.9.3, sfml >= 2.0, chipmunk >= 6.1"

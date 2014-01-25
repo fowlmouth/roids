@@ -156,6 +156,17 @@ proc getName* (e: PEntity): string =
     result = "entity #"
     result.add($e.id)
 
+proc accumMass* (result: var float) {.multicast.}
+
+type
+  Inventory* = object
+    items: seq[TEntity]
+
+msgImpl(Inventory, accumMass) do (result:var float):
+  for i in 0 .. < entity[inventory].items.len:
+    entity[inventory].items[i].accumMass(result)
+
+
 type
   Body* = object
     b*: cp.PBody
@@ -168,6 +179,8 @@ Body.setDestructor do (E: PEntity):
 
 msgImpl(Body, getAngle) do -> float:
   entity[body].b.getAngle.float
+msgImpl(Body, getMass) do -> float:
+  entity[body].b.getMass.float
 
 msgImpl(Body, unserialize) do (J: PJsonNode):
   if j.hasKey("Body"):
@@ -175,10 +188,11 @@ msgImpl(Body, unserialize) do (J: PJsonNode):
     let mass = j["mass"].toFloat
     case j["shape"].str
     of "circle":
-      var radius: float
+      var 
+        radius, mass, elasticity: float
       radius.getFloat j, "radius", 30.0
-      var elasticity: float
       elasticity.getFloat j, "elasticity", 1.0
+      mass.getFloat j, "mass", 1.0
       
       let 
         moment = momentForCircle(mass, radius, 0.0, vectorZero)
@@ -252,6 +266,7 @@ msgImpl(Body,turnRight)do:
 type InputController* = object
   forward*, backward*, turnLeft*, turnRight*: bool
   fireEmitter*: bool
+  spec*:bool
 
 msgImpl(InputController, update) do (dt: float) :
   let ic = entity[InputController].addr
