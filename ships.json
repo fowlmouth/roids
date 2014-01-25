@@ -31,7 +31,7 @@
     },"hornet":{
       "RollSprite": { "file": "terran/hornet_54x54.png" },
       "Body": { "mass": 3.0, "shape": "circle", "radius": 18 },
-      "InputController": true
+      "Components": ["InputController"]
       
     },"bullet1":{
       "AnimatedSprite": { "file": "EbulletA_12x12.png", "delay": 0.1 },
@@ -40,7 +40,7 @@
     },"wormhole":{
       "AnimatedSprite": { "file": "wormhole_192x192.png", "delay": 0.1 },
       "Body": { "mass": "infinity", "shape": "circle", "radius": 5,"elasticity":0.3 },
-      "GravitySensor" : { "radius": 500, "force": 80000 } ,
+      "GravitySensor" : { "radius": 1600, "force": 80000 } ,
       "CollisionHandler": {"action": "warp", "position": [30,30]}
     },"asteroid creator":{
       "Components": ["Position", "Orientation"],
@@ -48,29 +48,52 @@
         "emits": ["group", "asteroids"],
         "delay-ms": 2000
       }
+    },
+    "a09":{
+      "RollSprite": {"file": "A09_54x54.png"},
+      "Body": {"mass": 3.0, "shape": "circle", "radius": 18},
+      "Components": ["InputController"],
+      "Emitter": {
+        "emits": "bullet1",
+        "delay-ms": 80
+      }
+    },
+    "iron": {
+      "AnimatedSprite": { "file": "resources/IronOre_32x32.png" },
+      "Body": { "shape": "circle", "radius": 14 },
+      "Mass": 1.0
+    },
+    "iron-asteroid": {
+      "AnimatedSprite": { "file": "Rock48b_48x48.png" , "delay": 0.1 },
+      "Body": { "mass": 1.8, "shape": "circle", "radius": 18,"elasticity":0.3 },
+      "Inventory": [
+        ["iron", 4]
+      ]
     }
-    
   },
   "required-components": [ "RCC", "Named" ],
   "groups": {
     "asteroids": ["ast0","ast1","ast2","ast3","ast4","ast5","ast6","ast7","ast8","ast9"]
-  
   },
+  
   "rooms": {
     "duel1": {
       "bounds": [
-        [20, 20], [980, 20], [980, 980], [20, 980]
+        [20, 20], [1980, 20], [1980, 1980], [20, 1980]
       ],
       "objects": [
         { "obj": "asteroid creator",
           "extra-data": {
             "Position": [200,200],
-            "Orientation": ["degrees", 0]
+            "Orientation": ["degrees", 0],
+            "Emitter": {
+              "initial-impulse": ["mul_f",["direction-degrees", 0], 250.0]
+            }
           }
         },
         { "obj": "wormhole" ,
           "extra-data": {
-            "initial-position": [500,500]
+            "initial-position": [1000,1000]
           }
         },
         { "obj": "bullet1", 

@@ -24,8 +24,13 @@ proc point2d* (v: TVector): TPoint2d =
 proc point2d* (v: TVector2d): TPoint2d=
   point2d(v.x, v.y)
 
+proc distance*(a, b: TVector): float {.inline.} =
+  return sqrt(pow(a.x - b.x, 2.0) + pow(a.y - b.y, 2.0))
+
 proc `$`* (v: TVector2d): string =
   "($1,$2) $3".format(v.x.ff, v.y.ff, v.angle.radToDeg.ff) 
+
+proc toggle* (switch: var bool){.inline.}=switch = not switch
 
 proc getFloat* (result: var float; j: PJsonNode; key: string, default = 0.0) =
   if j.kind == JObject and j.hasKey(key):
@@ -57,7 +62,12 @@ proc toFloat* (n: PJsonNode): float =
   of jArray:
     case n[0].str
     of "random":
+      # random(x) 
       result = random(n[1].toFloat)
+    of "degrees":
+      # degToRad(x)
+      result = degToRad(n[1].toFloat)
+
   else:
     echo "Not a float value: ", n
 
@@ -220,36 +230,41 @@ proc thrustFwd* {.unicast.}
 proc thrustBckwd* {.unicast.}
 proc turnRight* {.unicast.}
 proc turnLeft* {.unicast.}
+proc fire* {.unicast.}
 
+const thrust = 5.0
+const turnspeed = 3.0
 msgImpl(Body, thrustFwd) do:
   entity[body].b.applyImpulse(
-    entity[Body].b.getAngle.vectorForAngle,
+    entity[Body].b.getAngle.vectorForAngle * thrust,
     vectorZero
   )
 msgImpl(Body, thrustBckwd) do:
   entity[body].b.applyImpulse(
-    -entity[body].b.getAngle.vectorForAngle,
+    -entity[body].b.getAngle.vectorForAngle * thrust,
     vectorZero
   )
 msgImpl(Body,turnLeft) do:
-  entity[body].b.setTorque(2.0)
+  entity[body].b.setTorque(-turnspeed)
 msgImpl(Body,turnRight)do:
-  entity[body].b.setTorque(-2.0)
+  entity[body].b.setTorque(turnspeed)
 
 type InputController* = object
-  frwd*, bckwd*, turnLeft*, turnRight*: bool
+  forward*, backward*, turnLeft*, turnRight*: bool
+  fireEmitter*: bool
 
 msgImpl(InputController, update) do (dt: float) :
   let ic = entity[InputController].addr
-  if ic.frwd:
+  if ic.forward:
     entity.thrustFwd
-  elif ic.bckwd:
+  elif ic.backward:
     entity.thrustBckwd
   if ic.turnLeft:
     entity.turnLeft
   elif ic.turnRight:
     entity.turnRight
-
+  if ic.fireEmitter:
+    entity.fire
 
 type
   GravitySensor* = object
@@ -414,6 +429,9 @@ msgImpl(CollisionHandler, unserialize) do (J: PJsonNode):
 
 import private/room_interface
 
+# room command chain
+# a queue of functions run so the entity has access to the room it is in
+
 type
   TRCC_CB* = proc(x: PEntity; r: PRoom)
   RCC* = object
@@ -443,6 +461,7 @@ type
     delay*: float
     cooldown*: float
     emits*: PJsonNode
+    initialImpulse*: TVector2d
     mode*: EmitterMode
   EmitterMode* {.pure.}=enum
     auto, manual
@@ -462,7 +481,9 @@ msgImpl(Emitter,unserialize) do (J: PJsonNode):
         entity[Emitter].mode = EmitterMode.manual
       else:
         entity[Emitter].mode = EmitterMode.auto
-
+    if j.hasKey"initial-impulse":
+      entity[emitter].initialImpulse = vector2d(j["initial-impulse"])
+# Emitter#update and #fire is in room.nim
 
 type
   Position* = object
@@ -483,7 +504,9 @@ type
 msgImpl(Orientation,getAngle) do -> float:
   entity[Orientation].angle
 
-
+msgIMpl(Orientation,unserialize)do(J:PJsonNode):
+  if j.hasKey("Orientation"):
+    entity[Orientation].angle = j["Orientation"].toFloat
 
 
 

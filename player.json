@@ -1,0 +1,15 @@
+{
+  "name": "scum",
+  "controls": "keyboard",
+  
+  "control-schemes": {
+    "keyboard": {
+      "forward": ["key", "up"],
+      "backward": ["key", "down"],
+      "turnright": ["key","right"],
+      "turnleft":["key","left"],
+      "fireemitter":["key","lcontrol"],
+      
+    }
+  }
+}

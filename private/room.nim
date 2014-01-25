@@ -1,6 +1,8 @@
 
-import fowltek/entitty, fowltek/idgen
-import private/components, private/gamedat, basic2d, math,json
+import 
+  fowltek/entitty, fowltek/idgen, 
+  private/components, private/gamedat,  
+  basic2d, math,json
 import csfml except pshape
 import chipmunk as cp
 import private/room_interface
@@ -25,20 +27,11 @@ proc destroy_ent* (r: PRoom; id: int) =
   r.activeEnts.del r.activeEnts.find(id)
   r.ent_id.release id
 
-
-proc add_asteroid* (r: PRoom; p: TPoint2d) =
-  var ent = newEnt(gamedata, gamedata.randomFromGroup("asteroids"))
-  ent.setPos p
-  let force = polarVector2d(random(360)/360*DEG360, random(50 .. 100).float)
-  ent.impulse force
-  ent[body].s.setElasticity(1.0)
-  r.add_ent ent
-
 proc free* (r: PRoom) =
+  echo "Freeing room! ", r.activeEnts.len, " active ents"
   for idx in r.activeEnts:
-    destroy r.ents[idx]
-    r.ents[idx].id = -1
-  destroy r.space
+    r.getEnt(idx).removeFromSpace r.space
+    destroy r.getEnt(idx)
   free r.space
 
 proc room* (space: PSpace): PRoom = 
@@ -130,17 +123,23 @@ proc update* (r: PRoom; dt: float) =
     b.resetForces
   r.space.eachBody(reset_forces, nil)
 
+proc fireEmitter (e: PEntity) =
+  if e[emitter].cooldown <= 0:
+    e.scheduleRC do(x: PEntity; r: PRoom):
+      # schedule an entity to be created
+      var ent = gameData.newEnt(x[emitter].emits)
+      ent.setPos x.getPos
+      var ii = x[emitter].initialImpulse
+      ii.rotate x.getAngle
+      ent.impulse ii
+      r.add_ent ent
+      x[emitter].cooldown = x[emitter].delay
 
 msgImpl(Emitter,update) do (dt: float):
   let e = entity[emitter].addr
   e.cooldown -= dt
-  if e.cooldown <= 0:
-    e.cooldown = 0
-    if e.mode == emitterMode.auto :
-      entity.scheduleRC do(x: PEntity; r: PRoom):
-        # schedule an entity to be created
-        var ent = gameData.newEnt(x[emitter].emits)
-        ent.setPos x.getPos
-        r.add_ent ent
-        x[emitter].cooldown = x[emitter].delay
+  if e.mode == emitterMode.auto:
+    entity.fireEmitter
 
+msgImpl(Emitter,fire) do:
+  entity.fireEmitter

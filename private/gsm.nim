@@ -37,6 +37,7 @@ proc newGod* (vm: TVideoMode; caption = "foo", style = sfDefaultStyle; firstStat
   result.state = @[ firstState ]
   result.sp = 0
 
+proc window*(g: PGod):PRenderWindow=g.w
 proc topGS* (g: PGod): PGameState = g.state[g.sp]
 
 proc push* (g: PGod; gs: PGameState) = 
