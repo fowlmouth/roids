@@ -28,12 +28,6 @@
       "AnimatedSprite": { "file": "Rock64c_64x64.png" , "delay": 0.1 },
       "Body": { "mass": 2.2, "shape": "circle", "radius": 26,"elasticity":0.3 }
       
-    },"hornet":{
-      "RollSprite": { "file": "terran/hornet_54x54.png" },
-      "Body": { "mass": 3.0, "shape": "circle", "radius": 18 },
-      "Components": ["InputController"],
-      "Health": 70
-      
     },"bullet1":{
       "AnimatedSprite": { "file": "EbulletA_12x12.png", "delay": 0.1 },
       "Body": { "mass": 0.3, "shape": "circle", "radius": 3 },
@@ -42,32 +36,68 @@
       }
       
     },"wormhole":{
+    
       "AnimatedSprite": { "file": "wormhole_192x192.png", "delay": 0.1 },
       "Body": { "mass": "infinity", "shape": "circle", "radius": 5,"elasticity":0.3 },
-      "GravitySensor" : { "radius": 1300, "force": 80000 } ,
+      "GravitySensor" : { "radius": 1300, "force": 8000 } ,
       "CollisionHandler": {"action": "warp", "position": [30,30]}
+      
+    },"weak wormhole":{
+    
+      "AnimatedSprite": { "file": "wormhole_192x192.png", "delay": 0.1 },
+      "Body": { "mass": "infinity", "shape": "circle", "radius": 5,"elasticity":0.3 },
+      "GravitySensor" : { "radius": 500, "force": 1600 } ,
+      "CollisionHandler": {"action": "warp", "position": [30,30]}
+    
+    },"blackhole":{
+    
+      "Body":{"mass":"infinity","shape":"circle","radius":1,"elasticity":0},
+      "GravitySensor": {"radius": 1600, "force": 100000}
+      
     },"asteroid creator":{
+    
       "Components": ["Position", "Orientation"],
       "Emitter": {
         "emits": ["group", "asteroids"],
         "delay-ms": 2000
       }
-    },
-    "a09":{
-      "RollSprite": {"file": "A09_54x54.png"},
-      "Body": {"mass": 3.0, "shape": "circle", "radius": 18},
+
+    },"hornet":{
+    
+      "RollSprite": { "file": "terran/hornet_54x54.png" },
+      "Body": { "mass": 10.0, "shape": "circle", "radius": 18 },
       "Components": ["InputController"],
+      "Actuators": 1656,
+      "Thrusters": {
+        "fwspeed": 50,
+        "rvspeed": -1,
+      },
+      "AngularDampners": 0.98,
+      "Health": 70
+
+    },"a09":{
+    
+      "RollSprite": {"file": "A09_54x54.png"},
+      "Body": {"mass": 10.0, "shape": "circle", "radius": 18},
+      "Components": ["InputController"],
+      "Actuators": 1380,
+      "Thrusters": {
+        "fwspeed": 45,
+        "rvspeed": -1,
+      },
       "Emitter": {
         "emits": "bullet1",
-        "delay-ms": 80
+        "delay-ms": 80,
+        "inherit-speed": 100.0,
       }
-    },
-    "iron": {
+      
+    },"iron": {
+    
       "AnimatedSprite": { "file": "resources/IronOre_32x32.png" },
       "Body": { "shape": "circle", "radius": 14, "mass": 1.0 },
       
-    },
-    "iron-asteroid": {
+    },"iron-asteroid": {
+    
       "AnimatedSprite": { "file": "Rock48b_48x48.png" , "delay": 0.1 },
       "Body": { "mass": 1.8, "shape": "circle", "radius": 18,"elasticity":0.3 },
       "Inventory": [
@@ -77,15 +107,90 @@
       "Armor": {
         "Kinetic" : 0.1
       }
+      
+    },"planetopia": {
+    
+      "AnimatedSprite": {"file":"planets/planet6_300x300.png"},
+      "Body":{"mass": 100.0, "shape":"circle", "radius":105, "elasticity":0.3},
+      "Health":50000,
+      "GravitySensor": {"force": 2500, "radius": 500}
+      
+    },"luna":{
+
+      "AnimatedSprite":{"file":"planets/planet20_300x300.png","scale":0.5},
+      "Body":{"mass": 50, "shape":"circle", "radius": 50, "elasticity": 0.3},
+      "Health":20000,
+      "GravitySensor": {"force": 2500, "radius": 250}
+
+    },"warp-in": {
+
+      "OneShotAnimation": {"file":"warp_128x128.png","delay-ms":25},
+      "ZOrder": -1,
+      "Components":["Position"]
+    
+    },"flag":{
+      "AnimatedSprite":{"file":"foo"}
+      
+    },"Spawn Point":{
+      
+      "Components": ["Position", "Area"]
+      
+    },"starfield1":{
+      "Sprite": { "file": "parallax/star000_512x512.png", }
     }
+    
   },
   "required-components": [ "RCC", "Named" ],
   "groups": {
     "asteroids": ["ast0","ast1","ast2","ast3","ast4","ast5","ast6","ast7","ast8","ast9"]
   },
   
-  "first-room": "duel1",
+  "first-room": "test0",
   "rooms": {
+    "test0": {
+      "bounds": {"width": 1000, "height": 1000},
+      "playable":["hornet"],
+      "objects":[
+        {"obj":"starfield1","data":{"Position":[0,0]}},
+        {"obj":"weak wormhole", "data":{
+          "Position": [500,500],
+          "CollisionHandler": {"action": "warp","position":[10,10] } 
+        }},{"obj":"asteroid creator","data":{
+          "Position": [990, 10],
+          "Orientation": ["degrees", 45],
+          "Emitter": { "delay-ms": 2000, "mode":"auto", "muzzle-velocity":2500 }
+        }}
+      ],
+      "teams":{
+        "Alpha": {
+          "entities": [
+            ["Spawn Point", {"Position": [50, 950], "Area": {"width":25,"height":25}}] 
+          ]
+        },
+        "Beta": {
+          "entities":[
+            ["Spawn Point", {"Position": [950,50], "Area": {"width":25, "height":25}}]
+          ]
+        }
+      }
+    },
+    "system0": {
+      "bounds": [
+        [0,0], [4000,0], [4000,4000], [0,4000]
+      ],"playable":[
+        "hornet","a09"
+      ],"objects":[
+        {"obj": "wormhole", "extra-data": {"Position": [2000,2000]}},
+        {"obj": "planetopia", "extra-data": {
+          "Position": [1900,1500],
+          "initial-impulse": ["mul_f", ["direction-degrees", 0], 7500]
+        }},
+        {"obj":"luna", "extra-data":{
+          "Position": [1900,1150],
+          "initial-impulse": ["mul_f", ["direction-degrees", 0], 5000]
+        }}
+      ]
+    },
     "duel1": {
       "bounds": [
         [20, 20], [1980, 20], [1980, 1980], [20, 1980]
@@ -93,7 +198,7 @@
       "playable": [
         "hornet", "a09"
       ],
-      "start-camera": [1900,1900],
+      "start-camera": [1000,1000],
       "objects": [
         { "obj": "iron",
           "extra-data": {
@@ -105,7 +210,8 @@
             "Position": [600,1000],
             "Orientation": ["degrees", -45],
             "Emitter": {
-              "initial-impulse": ["mul_f",["direction-degrees", 0], 250.0]
+              "initial-impulse": ["mul_f",["direction-degrees", 0], 250.0],
+              "mode": "auto",
             }
           }
         },

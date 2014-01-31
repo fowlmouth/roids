@@ -1,7 +1,13 @@
 
-import csfml, basic2d
+import csfml, basic2d,os
 
-import os
+proc right* (bb: TFloatRect): cfloat = bb.left + bb.width
+proc bottom*(bb: TFloatRect): cfloat = bb.top + bb.height
+
+proc contains* (bb: TFloatRect; point: tuple[x,y: int]): bool =
+  point.x.cfloat >= bb.left and point.x.cfloat <= bb.right and
+    point.y.cfloat >= bb.top and point.y.cfloat <= bb.bottom
+
 proc findFile (f: string; dirs: seq[string]): string =
   let oldD = getCurrentDir()
   block foo:
@@ -28,27 +34,25 @@ type
 var
   defaultFont* = systemFont("LiberationSans-Regular.ttf")
 
-method draw* (w: PRenderWindow; g: PWidget) = 
-  #if not g.draw.isNil:
-  #  g.draw(w, g)
-  echo "undrawn gui element ", repr(g)
-  
+type EGUI* = object of EBase
+template unkMethod (m): stmt = 
+  raise newException(EGUI, "Please implement "& m &" method.")
+
+method draw* (w: PRenderWindow; g: PWidget) =
+  unkMethod "draw"
 method setPos* (g: PWidget; x, y: float) =
-  nil
-
+  unkMethod "setPos"
 method handleClick* (g: PWidget; x, y: int):bool =
-  echo "unhandled click ", x, ",", y
-
+  unkMethod "handleClick"
 method getLocalBB* (g: PWidget): TFloatRect =
-  nil
-
+  unkMethod "getLocalBB"
 method update* (g: PWidget; dt: float) = 
-  nil
+  unkMethod "update"
 
 proc dispatch* (w: PWidget; evt: var TEvent): bool = 
   if evt.kind == evtMouseButtonPressed:
     if evt.mouseButton.button == mouseLeft:
-      return w.handleClick(evt.mouseButton.x.int, evt.mouseButton.y.int)
+      return w.handleClick(evt.mouseButton.x, evt.mouseButton.y)
 
 type
   PTextWidget* = ref object of PWidget
@@ -74,18 +78,15 @@ method getLocalBB* (g: PTextWidget): TFloatRect =
 
 method setPos* (g: PTextWidget; x, y: float) =
   g.text.setPosition(vec2f(x, y))
+method update* (g: PTextWidget; dt:float) = 
+  nil
+method handleClick*(g: PTextWidget; x,y: int):bool=
+  echo "Ignored handleClick on ptextwidget ", g.text.getString
 
 type
   PButton* = ref object of PTextWidget
     onClick*: proc()
 
-
-proc right* (bb: TFloatRect): cfloat = bb.left + bb.width
-proc bottom*(bb: TFloatRect): cfloat = bb.top + bb.height
-
-proc contains* (bb: TFloatRect; point: tuple[x,y: int]): bool =
-  point.x.cfloat >= bb.left and point.x.cfloat <= bb.right and
-    point.y.cfloat >= bb.top and point.y.cfloat <= bb.bottom
 
 method handleClick* (g: PButton; x, y: int) : bool =
   if (x, y) in g.text.getGlobalBounds:
@@ -146,10 +147,15 @@ method setPos* (w: PW_UL; x, y: float) =
   w.realign
   echo w.ws.len
 
+method getLocalBB* (g: PWUL): tFLoatRect =
+  for w in g.ws:
+    let bb = w.getLocalBB
+    result.height += bb.height
+    result.width = max(result.width, bb.width)
 
 type
   PHideable* = ref object of PWidget
-    visible: bool
+    visible*: bool
     w*: PWidget
 
 proc newHideable* (w: PWidget, visible = true) : PHideable =
@@ -159,12 +165,14 @@ method draw* (w: PRenderWindow; g: PHideable) =
   if g.visible:
     w.draw g.w
 method setPos* (w: PHideable; x,y: float) =
- w.w.setPos x,y
+  w.w.setPos x,y
 method handleClick* (w: PHideable; x,y: int): bool = 
- if w.visible:
-  result = w.w.handleClick(x,y)
+  if w.visible:
+    result = w.w.handleClick(x,y)
 method update* (g: PHideable; dt: float) =
- if g.visible: g.w.update dt
+  if g.visible: g.w.update dt
+method getLocalBB* (g: PHideable): TFloatRect=
+  g.w.getLocalBB
 
 type
   PUpdateable* = ref object of PWidget
@@ -179,6 +187,8 @@ method update* (g: PUpdateable; dt: float) =
   g.f()
 method getLocalBB* (g: PUpdateable): TFloatRect =
   g.w.getLocalBB
+method handleClick*(g: PUpdateable;x,y: int): bool=
+  result = g.w.handleClick(x,y)
 
 proc newUpdateable* (w: PWidget; f: proc()): PUpdateable =
   result = PUpdateable(

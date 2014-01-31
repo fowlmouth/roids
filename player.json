@@ -8,9 +8,10 @@
       "backward": ["key", "down"],
       "turnright": ["key","right"],
       "turnleft":["key","left"],
-      "fireemitter":["key","lcontrol"],
+      "fireemitter":["key","space"],
       
-      "spec": ["key", "f12"]
+      "spec": ["key", "f12"],
+      "skillmenu": ["key","f11"],
     }
   }
 }

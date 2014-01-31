@@ -1,5 +1,5 @@
-import csfml, csfml_colors, private/ sfgui
-export csfml, sfgui
+import csfml, csfml_colors, private/sfgui2
+export csfml
 type
   PGameState* = ref object of TObject
 
@@ -27,8 +27,9 @@ method draw* (w: PRenderWindow; gs: PWIYG) =
   w.draw gs.text
 proc whoIsYourGod : PGameState =
   let res = PWIYG()
-  res.text = newText("Who is your god?", defaultFont, 14)
+  res.text = newText("Who is your god?", sfgui2.defaultFont, 14)
   res.text.setColor green
+  res.text.setPosition vec2f(10,10)
   return res
 
 proc newGod* (vm: TVideoMode; caption = "foo", style = sfDefaultStyle; firstState = whoIsYourGod()): PGod =
@@ -39,6 +40,10 @@ proc newGod* (vm: TVideoMode; caption = "foo", style = sfDefaultStyle; firstStat
 
 proc window*(g: PGod):PRenderWindow=g.w
 proc topGS* (g: PGod): PGameState = g.state[g.sp]
+proc past*  (g: PGod): PGameState = g.state[< g.sp]
+proc pop* (g: PGod) =
+  dec g.sp
+  g.state.setLen g.sp+1
 
 proc push* (g: PGod; gs: PGameState) = 
   g.state.add gs
@@ -52,7 +57,7 @@ proc run* (g: PGod) =
   var evt: TEvent
   while g.w.isOpen:
     while g.w.pollEvent(evt):
-      if evt.kind == evtClosed:
+      if evt.kind == evtClosed: 
         g.w.close
         break
       g.topGS.handleEvent evt
@@ -65,5 +70,8 @@ proc run* (g: PGod) =
     g.w.display
 
 
+when isMainModule:
+  var g = newGod(videoMode(800,600,32),"Hello")
+  g.run
 
 
