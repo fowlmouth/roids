@@ -678,3 +678,7 @@ proc bb* (R: Radar; P: TPoint2d): TBB =
     r.r, r.r
   )
 
+
+type BannedEntity* = object
+
+

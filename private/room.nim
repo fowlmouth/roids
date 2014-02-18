@@ -2,7 +2,7 @@
 import 
   fowltek/entitty, fowltek/idgen, fowltek/bbtree,fowltek/boundingbox, 
   private/components, private/gamedat,  private/room_interface, private/debug_draw,
-  private/common,
+  private/common, private/soundbuffer,
   basic2d, math,json, algorithm, logging
 import csfml except pshape
 import chipmunk as cp except TBB
@@ -422,19 +422,44 @@ proc evalBool* (J:PJsonNode; R: PRoom): bool =
     of "not":
       result = not j[1].evalBool(R)
 
+
+
+msgImpl(CollisionHandler, unserialize) do (J: PJsonNode; R: PRoom):
+  if j.hasKey("CollisionHandler") and j["CollisionHandler"].kind == jObject:
+    let j = j["CollisionHandler"]
+    case j["action"].str
+    of "warp":
+      let p = point2d(j["position"])
+      entity[collisionHandler].f = proc(self,other: PEntity) =
+        other.setPos p
+        other.scheduleRC do (x: PEntity; r: PRoom):
+          var ent = gameData.newEnt(r, "warp-in")
+          ent.setPos x.getPos
+          r.add_ent ent
+    of "destroy":
+      entity[CollisionHandler].f = proc(self,other: PEntity) =
+        other.scheduleRC do (x: PEntity; r: PRoom):
+          r.doom(x.id)
+
+
+
 import private/emitter_type
 
 proc canFire (x: PEntity; e: PEmitterType; room: PRoom): bool =
-  result = true
+  if e.isNil: return false
+  
   if e.logic.has:
-    result = evalBool(e.logic.val, room)
+    return evalBool(e.logic.val, room)
+  
+  return true
 
 proc canFire* (emitter: Emitter): bool{.inline.} =
   emitter.cooldown <= 0
 proc canFire* (x: PEntity; emitter: var Emitter; room: PRoom): bool {.inline.}=
-  if not x.canFire(emitter.e, room):
-    return
-  return emitter.canFire
+  x.canFire(emitter.e, room) and emitter.canFire
+
+proc playSound* (R: PRoom; sound: PSoundCached; pos: TPoint2d) {.inline.} =
+  R.soundBuf.playSound sound , pos
 
 proc fireET (R: PRoom; parent: int; ET: PEmitterType) =
   template x: expr = r.getEnt(parent)
@@ -454,6 +479,9 @@ proc fireET (R: PRoom; parent: int; ET: PEmitterType) =
   of emitterkind.multi:
     for et in et.kind.multi:
       fireET r, parent, et
+  
+  if et.fireSound:
+    r.playSound et.fireSound.val, r.getEnt(parent).getPos
 
 proc fireEmitter (e: PEntity) =
   if e[emitter].canFire: 
@@ -464,7 +492,7 @@ proc fireEmitter (e: PEntity) =
       
       let id = x.id
       
-      fireET r, x.id, x[emitter].e
+      fireET r, id, x[emitter].e
       # creating new entities might cause reallocations
       r.getEnt(id)[emitter].cooldown = r.getEnt(id)[emitter].e.delay
 
@@ -503,20 +531,4 @@ msgImpl(Emitters, fire, 101) do (slot: int):
   if slot in 0 .. < entity[emitters].ems.len:
     entity.fireEmitterSlot slot
 
-msgImpl(CollisionHandler, unserialize) do (J: PJsonNode; R: PRoom):
-  if j.hasKey("CollisionHandler") and j["CollisionHandler"].kind == jObject:
-    let j = j["CollisionHandler"]
-    case j["action"].str
-    of "warp":
-      let p = point2d(j["position"])
-      entity[collisionHandler].f = proc(self,other: PEntity) =
-        other.setPos p
-        other.scheduleRC do (x: PEntity; r: PRoom):
-          var ent = gameData.newEnt(r, "warp-in")
-          ent.setPos x.getPos
-          r.add_ent ent
-    of "destroy":
-      entity[CollisionHandler].f = proc(self,other: PEntity) =
-        other.scheduleRC do (x: PEntity; r: PRoom):
-          r.doom(x.id)
 

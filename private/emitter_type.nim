@@ -1,6 +1,6 @@
 import 
   fowltek/maybe_t,
-  private/common,
+  private/common, private/soundbuffer,
   json, basic2d, tables, logging
 
 
@@ -11,6 +11,7 @@ type
     initialImpulse*: TVector2d
     inheritVelocity*, muzzleVelocity*: float
     logic*: TMaybe[PJsonnode]
+    fireSound*: TMaybe[PSoundCached]
     kind*: TEmitterKind
     emits_json*: PJsonNode
 
@@ -42,6 +43,9 @@ proc unserialize (ET: PEmitterType; J: PJsonNode) =
   withKey(j, "logic", j): et.logic = just(j)
   
   withKey(j, "angle", j): et.angle = j.toFloat
+  
+  withKey(j, "fire-sound", j):
+    et.fireSound = maybe(loadSound(j))
 
 proc emitterTy* (name: string; J: PJsonNode): PEmitterType =
   result = PEmitterType(name: name)

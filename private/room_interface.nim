@@ -2,6 +2,7 @@ import chipmunk as cp
 import fowltek/idgen, fowltek/entitty, fowltek/bbtree, fowltek/boundingbox
 import 
   private/components, private/emitter_type,
+  private/soundbuffer,
   json
 
 type
@@ -12,6 +13,8 @@ type
     groups*: TTable[string, seq[string]] # group name => @[ ent names ]
     rooms*: TTable[string, PJsonNode]
     emitters*: TTable[string,PEmitterType]
+    sounds*: TTable[string,PSoundCached]
+    soundBuf*: PSoundBuffer
     dir*: string
     firstRoom*:string
     j*: PJsonNode 
@@ -80,3 +83,5 @@ proc getTeam* (R: PRoom; id: int): TMaybe[PTeam] =
   if id in 0 .. < R.teamSys.teams.len:
     return Just(r.teamSys.teams[id])
 
+proc soundBuf* (R: PRoom): soundbuffer.PSoundBuffer {.inline.} =
+  R.gameData.soundBuf

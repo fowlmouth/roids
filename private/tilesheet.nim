@@ -32,6 +32,9 @@ proc tilesheet* (file: string): PTilesheet =
   
   var img = newImage(assetsdir / file)
   
+  if img.isNil:
+    raise newException(EIO, "Failed to load image "& file)
+  
   new result, free
   result.file = file
   let sz = img.getSize

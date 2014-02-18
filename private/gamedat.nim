@@ -1,6 +1,6 @@
 import fowltek/entitty, tables, json,math, os,
   private/components, private/common, private/room_interface,
-  private/emitter_type,
+  private/emitter_type, private/soundbuffer,
   basic2d,
   fowltek/maybe_t
 
@@ -33,6 +33,8 @@ proc loadGameData* (dir: string): PGameData =
   result.groups = initTable[string,seq[string]](64)
   result.rooms = initTable[string,PJsonNode](64)
   result.emitters = initTable[string,PEmitterType](64)
+  result.sounds = initTable[string,PSoundCached](64)
+  result.soundBuf = soundBuffer(10)
 
   template maybeAdd (seq; c): stmt =
     if(;let id = safeFindComponent(c); id != -1):
@@ -86,7 +88,7 @@ proc loadGameData* (dir: string): PGameData =
 
 proc new_ent* (d: PGameData; R: PRoom; name: string): TEntity =
   when defined(debug):
-    echo "instantiating " , name
+    info "instantiating entity " , name
   let tj = d.entities.mget(name).addr
   result = tj.ty.newEntity
   result.unserialize tj.j1, r
