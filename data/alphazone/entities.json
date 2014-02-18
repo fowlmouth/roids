@@ -1,40 +1,63 @@
 {
   "ast0": {
-    "AnimatedSprite": { "file": "Rock24a_24x24.png" , "delay": 0.1 },
+    "AnimatedSprite": { "file": "asteroids/Rock24a_24x24.png" , "delay": 0.1 },
     "Body": { "mass": 0.5, "shape": "circle", "radius": 8.5,"elasticity":0.3 }
   },"ast1":{
-    "AnimatedSprite": { "file": "Rock24b_24x24.png" , "delay": 0.1 },
+    "AnimatedSprite": { "file": "asteroids/Rock24b_24x24.png" , "delay": 0.1 },
     "Body": { "mass": 0.6, "shape": "circle", "radius": 9,"elasticity":0.3 }
   },"ast2":{
-    "AnimatedSprite": { "file": "Rock32a_32x32.png" , "delay": 0.1 },
+    "AnimatedSprite": { "file": "asteroids/Rock32a_32x32.png" , "delay": 0.1 },
     "Body": { "mass": 0.89, "shape": "circle", "radius": 13,"elasticity":0.3 }
   },"ast3":{
-    "AnimatedSprite": { "file": "Rock48a_48x48.png" , "delay": 0.1 },
+    "AnimatedSprite": { "file": "asteroids/Rock48a_48x48.png" , "delay": 0.1 },
     "Body": { "mass": 1.8, "shape": "circle", "radius": 18,"elasticity":0.3 }
   },"ast4":{
-    "AnimatedSprite": { "file": "Rock48b_48x48.png" , "delay": 0.1 },
+    "AnimatedSprite": { "file": "asteroids/Rock48b_48x48.png" , "delay": 0.1 },
     "Body": { "mass": 1.8, "shape": "circle", "radius": 16,"elasticity":0.3 }
   },"ast5":{
-    "AnimatedSprite": { "file": "Rock48c_48x48.png" , "delay": 0.1 },
+    "AnimatedSprite": { "file": "asteroids/Rock48c_48x48.png" , "delay": 0.1 },
     "Body": { "mass": 1.8, "shape": "circle", "radius": 18,"elasticity":0.3 }
   },"ast6":{
-    "AnimatedSprite": { "file": "Rock64a_64x64.png" , "delay": 0.1 },
+    "AnimatedSprite": { "file": "asteroids/Rock64a_64x64.png" , "delay": 0.1 },
     "Body": { "mass": 2.1, "shape": "circle", "radius": 26,"elasticity":0.3 }
   },"ast7":{
-    "AnimatedSprite": { "file": "Rock64b_64x64.png" , "delay": 0.1 },
+    "AnimatedSprite": { "file": "asteroids/Rock64b_64x64.png" , "delay": 0.1 },
     "Body": { "mass": 2.2, "shape": "circle", "radius": 26,"elasticity":0.3 }
   },"ast8":{
-    "AnimatedSprite": { "file": "Rock64c_64x64.png" , "delay": 0.1 },
+    "AnimatedSprite": { "file": "asteroids/Rock64c_64x64.png" , "delay": 0.1 },
     "Body": { "mass": 2.2, "shape": "circle", "radius": 26,"elasticity":0.3 }
     
-  },"bullet1":{
-    "AnimatedSprite": { "file": "EbulletA_12x12.png", "delay": 0.1 },
+  },
+  "p-bullet":{
+    "Lifetime": 2.8,
+    "AnimatedSprite": { "file": "bullets/EbulletA_12x12.png", "delay":0.1},
     "Body": { "mass": 0.3, "shape": "circle", "radius": 3 },
-    "Damage": {
-    
-    },
-    "Lifetime": 2.8
-    
+    "Damage": {},
+    "Explosion": "p-bullet.explosion",
+    "Trail":{"entity":"p-bullet.trail", "delay-ms": 120},
+  
+  },
+  "p-bullet.explosion":{
+    "OneShotAnimation":{"file":"bullets/EBulletHit_32x32.png","delay":0.1},
+    "Components":["Position"]
+  },
+  "p-bullet.trail":{
+    "OneShotAnimation":{"file":"bullets/bullettrail2_12x12.png","delay":0.1},
+    "Components":["Position"]
+  },
+  
+  "bomb-whack":{
+    "AnimatedSprite":{"file":"bullets/Ebomb_20x20.png","delay":0.1},
+    "Body":{"mass":0.35,"shape":"circle","radius":6},
+    "Lifetime":2.8,
+    "TriggerRadius":12,
+  },
+  
+  "repel":{
+    "OneShotAnimation":{"file":"explosions/ShockWaveLarge_156x156.png","delay":0.1},
+    "Body":{"mass":100.0, "shape":"circle","radius":0.1},
+    "GravitySensor":{"force":-500000,"radius":512}
+  
   },"wormhole":{
   
     "AnimatedSprite": { "file": "wormhole_192x192.png", "delay": 0.1 },
@@ -65,7 +88,7 @@
 
   },"hornet":{
   
-    "RollSprite": { "file": "terran/hornet_54x54.png" },
+    "RollSprite": { "file": "vehicles/terran/hornet_54x54.png" },
     "Body": { "mass": 10.0, "shape": "circle", "radius": 18 },
     "Components": ["InputController"],
     "Actuators": 39300,
@@ -73,7 +96,7 @@
       "fwspeed": 45,
       "rvspeed": -1,
     },
-    "Emitters": ["P-Cannon", "Quad-P-Cannon"],
+    "Emitters": ["P-Cannon", "Bomb"],
     "AngularDampners": 0.94,
     "VelocityLimit": 350.0,
     "Health": 70,
@@ -81,7 +104,7 @@
 
   },"a09":{
   
-    "RollSprite": {"file": "A09_54x54.png"},
+    "RollSprite": {"file": "vehicles/A09_54x54.png"},
     "Body": {"mass": 10.0, "shape": "circle", "radius": 18},
     "Components": ["InputController"],
     "Actuators": 1380,
@@ -89,23 +112,21 @@
       "fwspeed": 45,
       "rvspeed": -1,
     },
-    "Emitter": {
-      "emits": "bullet1",
-      "delay-ms": 80,
-      "inherit-speed": 100.0,
-    },
+    "Emitters": ["P-Cannon"],
     "AngularDampners":0.98,
     "Health":55
     
   },"DefSat":{
-    "Sprite":{"file":"turrets/DefSat_54x54.png"},
+    "Sprite":{"file":"vehicles/turrets/DefSat_54x54.png"},
     "Body":{"mass":50,"shape":"circle","radius":18},
     "Components":["InputController"],
     "Actuators": 15000,
     "Emitter": {
-      "emits":"bullet1",
-      "delay-ms":80,
-      "muzzle-velocity":12.7
+      "emits": ["p-cannon"],
+      "delay-ms":210,
+      "muzzle-velocity":120.7,
+      "logic": ["<", ["entities-alive", "p-cannon"], 6],
+      "mode":"auto"
     }
 
   },"iron": {
@@ -148,7 +169,7 @@
   },"warp-in": {
 
     "OneShotAnimation": {"file":"warp_128x128.png","delay-ms":25},
-    "ZOrder": -1,
+    "ZOrder": -2,
     "Components":["Position"]
   
   },"flag":{
@@ -160,8 +181,12 @@
     "Role":"spawn-point",
   
   },"Solar Mold":{
-    "AnimatedSprite":{"file":"turrets/spaceMold_80x80.png", "delay-ms":70},
+    "AnimatedSprite":{"file":"mold/spaceMold_80x80.png", "delay-ms":70},
     "Body":{"mass":60,"shape":"circle","radius":38}
+    
+  },"Mold Spore":{
+    "AnimatedSprite":{"file":"mold/spaceMoldSpore_32x59.png","delay":300},
+    "Body":{"mass":60,"shape":"circle","radius":14},
     
   },"starfield1":{
     "Sprite":{"file":"parallax/star000_512x512.png","origin":[0,0]

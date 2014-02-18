@@ -1,18 +1,22 @@
 {
   "P-Cannon": {
-    "emits": "bullet1",
+    "emits": "p-bullet",
     "delay-ms": 83,
     "inherit-velocity": 0.9,
     "muzzle-velocity": 220.666,
-    "angle":0
-  },"Tri-P-Cannon": {
+    "angle":0,
+    "fire-sound":"gun3.wav",
+    
+  },
+  "Tri-P-Cannon": {
     "emits": [
       ["P-Cannon", {"angle":["degrees",-30]}],
       ["P-Cannon", {"angle":0}],
       ["P-Cannon", {"angle":["degrees",30]}]
     ],
     "delay-ms": 124
-  },"Quad-P-Cannon":{
+  },
+  "Quad-P-Cannon":{
     "emits":[
       ["P-Cannon",{"angle":["degrees",-3]}],
       ["P-Cannon",{"angle":["degrees",-9]}],
@@ -20,7 +24,8 @@
       ["P-Cannon",{"angle":["degrees", 9]}],
     ],
     "delay-ms": 135
-  },"Mega-P-Cannon":{
+  },
+  "Mega-P-Cannon":{
     "emits":[
       ["P-Cannon",{"angle":["degrees",-6]}],
       ["P-Cannon",{"angle":["degrees",-12]}],
@@ -29,5 +34,15 @@
       ["P-Cannon",{"angle":["degrees",12]}],
     ],
     "delay-ms": 149
+  },
+  
+  
+  "Bomb":{
+    "emits":"bomb-whack",
+    "delay-ms":500,
+    "inherit-velocity":0.8,
+    "muzzle-velocity":190,
+    "angle":0,
+    "fire-sound":"ebomb1.wav"
   }
 }
