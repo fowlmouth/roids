@@ -1,18 +1,22 @@
 
 import 
   fowltek/entitty, fowltek/idgen, fowltek/bbtree,fowltek/boundingbox, 
-  private/components, private/gamedat,  private/room_interface,
-  basic2d, math,json, algorithm
+  private/components, private/gamedat,  private/room_interface, private/debug_draw,
+  private/common,
+  basic2d, math,json, algorithm, logging
 import csfml except pshape
-import chipmunk as cp
+import chipmunk as cp except TBB
 
-var gamedata*: TGamedata
+var gamedata*: PGameData
 
+proc add* (S:PRenderSystem; ent:int; r:PRoom)=
+  if r.getEnt(ent).hasComponent(Parallax):
+    S.parallaxEntities.add ent
+  else:
+    S.tree.insert ent, r.getEnt(ent).getBB
 
 proc add* (S:PUpdateSystem; ent: int) =
   S.active.add ent
-proc add* (S:PRenderSystem; ent:int; r:PRoom)=
-  S.tree.insert ent, r.getEnt(ent).getBB
 proc add* (S:PPhysicsSystem; ent:int; r:PRoom)=
   r.getEnt(ent).addToSpace (s.space)
 
@@ -21,9 +25,17 @@ proc add_to_systems* (entity: int; r: PRoom) =
   r.renderSYS.add entity, r
   r.physSys.add entity, r
 
+proc remove* (S: PRenderSystem; entity: PEntity) =
+  if entity.hasComponent(Parallax):
+    let index = S.parallaxEntities.find(entity.id)
+    if index != -1:
+      S.parallaxEntities.del index
+    return
+  S.tree.remove entity.id
+
 proc rem_from_systems* (ent:int;r:PRoom)=
   r.updateSys.active.del r.updateSys.active.find(ent)
-  r.renderSys.tree.remove ent
+  r.renderSys.remove r.getEnt(ent)
   r.getEnt(ent).removeFromSpace(r.physSys.space)
 
 proc add_ent* (r: PRoom; e: TEntity): int {.discardable.} =
@@ -35,7 +47,7 @@ proc add_ent* (r: PRoom; e: TEntity): int {.discardable.} =
   add_to_systems result, r
 
 proc destroy_ent (r: PRoom; id: int) =
-  echo "destroyed entity #",id, ": ", r.getEnt(id).getName
+  debug "Destroying entity #$#: $#", id, r.getEnt(id).getName
   id.rem_from_systems(r)
   destroy r.getEnt(id)
   r.ent_id.release id
@@ -82,69 +94,238 @@ proc handle_gravity (arb: PArbiter; space: PSpace; data: pointer): bool {.cdecl.
     delta.normalizeSafe * force,
     vectorZero)
 
+proc handle_grav2 ( arb: PArbiter; space: PSpace; data:pointer): bool {.cdecl.}=
+  var gravSensor,shapeB: cp.PShape
+  arb.getShapes gravSensor,shapeB
+  
+  template gravEnt: expr = space.room.getEnt(gravSensor.entID)
+  
+  let
+    p = shapeB.getBody.getPos - gravSensor.getBody.getPos
+    sqdist = p.lenSq
+    f = p * - gravEnt[gravitySensor].force / (sqdist * sqrt(sqdist))
+  
+  shapeB.getBody.applyImpulse(f, vectorZero)
+
+proc set_team (R: PRoom; ent: int; team: int) =
+  if(var (has,T) = R.getTeam(team); has):
+    debug("Player $# joined team $#", r.getEnt(ent).getName, T.name)
+    R.getEnt(ent)[TeamMember].team = team
+    T.members.add ent
+
+proc `$` * (s: seq[int]): string =
+  result = "["
+  for i in 0 .. < len(s):
+    result.add ($ s[i])
+    if i < high(s):
+      result.add ", "
+  result.add ']'
+proc `$` * (t:PTeam): string = 
+  if t.isNil: "nil.PTeam"
+  else: $ (t[])
+
+proc add_team (R: PRoom; name: string): int {.discardable.}=
+  result = r.teamSys.teams.len
+  r.teamSys.teams.ensureLen result+1
+  r.teamSys.teams[result] = PTeam(
+    id: result, 
+    name: name, 
+    members: @[]
+  )
+  r.teamSys.teamNames[name] = result
+  
+  debug "New team $#", r.teamSys.teams[result]
+  
+proc initRoom (room: PRoom; j: PJsonNode) =
+  room.name = j["name"].str
+  room.ents = @[]
+  room.ent_id = newIDgen[int]()
+  room.gameData = gameData
+  discard room.ent_id.get # use up 0
+  
+  block:
+    template space: expr = room.physSys.space
+    space.setUserdata(cast[pointer](room))
+    
+    space.addCollisionHandler(
+      ct"gravity", 0.cuint, 
+      presolve = handleGrav2
+    )
+    space.addCollisionHandler(
+      0, 0,
+      postSolve = callCollisionCB
+    )
+    
+    # bounds
+    if j.hasKey"bounds":
+      var bounds: seq[TVector] = @[]
+      if j["bounds"].kind == jObject:
+        if j["bounds"].hasKey("shape"):
+          if j["bounds"]["shape"].str == "circle":
+            let radius = j["bounds"]["radius"].toFloat
+            let center = vector2d(radius, radius)
+            let points = if j["bounds"].hasKey("points"): j["bounds"]["points"].toInt else: 30
+            for i in 0 .. < points:
+              bounds.add polarVector2d(deg360 * (i / points), radius) + center
+        else:
+          let w = j["bounds"]["width"].toFloat
+          let h = j["bounds"]["height"].toFloat
+          bounds.add vector(0,0)
+          bounds.add vector(w,0)
+          bounds.add vector(w,h)
+          bounds.add vector(0,h)
+      elif j["bounds"].kind == jArray:
+        for b in j["bounds"]:
+          bounds.add vector(vector2d(b))
+      
+      room.bounds = just(newseq[cp.pshape](0))
+      for i in 0 .. < bounds.len:
+        const borderRadius = 10.0
+        let
+          b = space.getStaticBody
+          v1 = bounds[i]
+          v2 = bounds[(i+1) mod bounds.len]
+          s = newSegmentShape(b, v1, v2, borderRadius)
+        s.setElasticity 0.5
+        room.bounds.val.add( space.addShape(s) )
+  
+  proc import_team (team_id: int; j: PJsonNode) =
+    var entities: PJsonNode
+    if j.kind == jArray:
+      # list of entities
+      entities = j
+    elif j.kind == jObject:
+      entities = j["entities"]
+    else:
+      return
+    
+    for entity in entities:
+      let
+        entity_type = entity[0]
+        entity_data = entity[1]
+
+      var ent: TEntity
+      ent = gameData.newEnt(room, entity_type)
+      dom.addComponents(ent, TeamMember)
+      ent.unserialize entity[1], room
+      
+      let ent_id = room.addEnt(ent)
+      room.setTeam ent_id, team_id
+
+  
+  add_team room, "Spectators"
+  if j.hasKey"teams":
+    for name, team in j["teams"]:
+      let team_id = add_team(room, name)
+      import_team team_id, team
+
+  proc importObject (n: PJsonNode) =
+    var 
+      count = 1
+      objTy: PJsonNode
+      data: PJsonNode
+    if n.kind == jArray:
+      objTy = n[0]
+      if n.len == 3:
+        count = n[1].toInt
+        data = n[2]
+      elif n.len == 2:
+        data = n[1]
+    elif n.kind == jObject:
+      if n.hasKey("group"):
+        objTy = %[%"group", n["group"]]
+      elif n.hasKey("obj"):
+        objTy = n["obj"]
+      
+      if n.hasKey("data"):
+        data = n["data"]
+      elif n.hasKey("extra-data"):
+        data = n["extra-data"]
+    else:
+      return
+    
+    for i in 0 .. < count:
+      var ent: TEntity
+      try:
+        ent = gameData.newEnt(room,objTy)
+      except EInvalidKey:
+        warn "Entity not found $#", objTy
+        break
+
+      ent.unserialize data, room
+      room.addEnt(ent)
+
+  if j.hasKey("objects"):
+    let j = j["objects"]
+    for obj in j:
+      importObject(obj)
+  else:
+    warn "No objects in this room."
+    
+
 proc newRoom* (j: PJsonNode) : Proom =
   result.new free
-  
+  info "Creating a new room."
   result.initSystems
-  
-  result.ents = @[]
-  result.ent_id = newIDgen[int]()
-  discard result.ent_id.get # use up 0
-  
-  template space: expr = result.physSys.space
-  space.setUserdata(cast[pointer](result))
-  
-  space.addCollisionHandler(
-    ct"gravity", 0.cuint, 
-    presolve = handleGravity
-  )
-  space.addCollisionHandler(
-    0, 0,
-    postSolve = callCollisionCB
-  )
-  
-  # bounds
-  if j.hasKey"bounds":
-    var bounds: seq[TVector] = @[]
-    if j["bounds"].kind == jObject:
-      let w = j["bounds"]["width"].toFloat
-      let h = j["bounds"]["height"].toFloat
-      bounds.add vector(0,0)
-      bounds.add vector(w,0)
-      bounds.add vector(w,h)
-      bounds.add vector(0,h)
-    else:
-      for b in j["bounds"]:
-        bounds.add vector(vector2d(b))
-    
-    for i in 0 .. < bounds.len:
-      let
-        b = space.getStaticBody
-        v1 = bounds[i]
-        v2 = bounds[(i+1) mod bounds.len]
-        s = newSegmentShape(b, v1, v2, 1.0)
-      s.setElasticity 0.5
-      discard space.addShape(s)
+  result.initRoom j
 
-  for obj in j["objects"]:
-    var 
-      count: int
-    count.getInt obj, "count", 1
-    
-    for i in 0 .. <count:
-      var ent: TEntity
-      if obj.hasKey"obj":
-        ent = gameData.newEnt(obj["obj"].str)
-      elif obj.hasKey"group":
-        ent = gameData.newEnt(gameData.randomFromGroup(obj["group"].str))
-      else:
-        break
-      
-      if obj.haskey("data"):
-        ent.unserialize obj["data"]
-      if obj.hasKey("extra-data"):
-        ent.unserialize obj["extra-data"]
-      result.addEnt ent
+proc remove* [T] (s: var seq[T]; item: T) =
+  if (let index = s.find(item); index != -1):
+    s.delete index
+
+proc setPlayerteam (R:PRoom;player,team:int) =
+  if team != R.getEnt(player)[TeamMember].team:
+    R.getTeam(R.getEnt(player)[TeamMember].team).val.members.remove(player)
+  R.setTeam(player, team)
+
+proc getPlayerTeam* (R: PRoom; player: int): TMaybe[PTeam] =
+  if R.getEnt(player).hasComponent(TeamMember):
+    result = R.getTeam(R.getEnt(player)[TeamMember].team)
+
+proc joinPlayer* (R: PRoom; name: string): int =
+  var ent = dom.newEntity(Named, Owned, TeamMember, Radar)
+  ent[Named].s = name
+  ent[Radar].r = 1200.0
+  result = R.addEnt(ent)
+  R.setPlayerTeam result, 0
+  
+  debug "Player $# joined room $# (team $#)",
+    r.getEnt(result).getName, r.name,
+    R.getTeam(R.getEnt(result)[TeamMember].team)
+
+proc findRole* (T: PTeam; R: PRoom; role: string): seq[int] =
+  result = @[]
+  for member in T.members:
+    if R.getEnt(member).hasRole(role):
+      result.add member
+proc firstMaybe* [T] (s: seq[T]): TMaybe[T] =
+  if s.isNil or s.len == 0:
+    return
+  return just(s[0])
+
+proc requestUnspec* (R: PRoom; player: int; veh: string): TMaybe[int] =
+  # puts the player on a team and give them a vehicle
+  
+  # find a team if player team is 0
+  var playerTeam = r.getPlayerTeam(player)
+  if r.teamSys.teams.len > 1 and not(playerTeam.has) or playerTeam.val.id == 0:
+    # put them on a team
+    r.setPlayerTeam player, 1
+    playerTeam = r.getPlayerTeam(player)
+
+  # vehicle
+  var ent = gameData.newEnt(R,veh)
+  dom.addComponents ent, Owned
+  ent[Owned].by = player
+  let vehicle_id = R.addEnt(ent)
+  result = Just(vehicle_id)
+
+  let spawnPoint = playerTeam.val.findRole(r, "spawn-point").firstMaybe
+  if spawnPoint:
+    let pos = r.getEnt(spawnPoint.val).getPos
+    R.getEnt(vehicle_id).setPos pos
+  else:
+    debug "Spawnpoint not found for team $#", playerTeam
 
 
 proc run* (s: PUpdateSystem; r:PRoom; dt: float) =
@@ -161,15 +342,38 @@ proc step* (s: PPhysicsSystem; dt: float)=
     b.resetForces
   s.space.eachBody(reset_forces, nil)
 
+template once* (body:stmt): stmt =
+  var hasRan {.global.} = false
+  if not hasRan:
+    body
+    hasRan = true
+
+proc draw_parallax (r: PRoom; w: PRenderWindow) {.inline.} =
+  # draw parallax background layer
+  if r.renderSys.parallaxEntities.len == 0: return
+  
+  let center = w.getView.getCenter
+  let oldView = w.getView
+  let view = oldView.copy
+  w.setView view
+  for p_ent in r.renderSys.parallaxEntities:
+    view.setCenter center * r.getEnt(p_ent)[Parallax].offs
+    r.getEnt(p_ent).draw w
+  w.setView oldView
+  destroy view
 proc draw* (r: PRoom; bb: boundingbox.TBB; w: PRenderWindow) {.inline.} =
-  for id in r.updateSys.active:
-    r.renderSys.tree.update id, r.getEnt(id).getBB
+  r.renderSys.tree.update do (item: int) -> TBB: r.getEnt(item).getBB
+  
+  r.draw_parallax w
+  
+  if r.bounds.has:
+    for s in r.bounds.val: debugDrawShape(s, w)
   
   type TZorderEnt = tuple[ent, z: int]
   var z_ents {.global.} = newSeq[TZorderEnt](0)
   r.renderSys.tree.query(bb) do (item: int):
     #r.getEnt(item).draw(w)
-    z_ents.add((item, r.getEnt(item).getZorder))
+    z_ents.add((ent: item, z: r.getEnt(item).getZorder))
   z_ents.sort do (x, y: TZorderEnt)-> int : cmp(x.z, y.z)
   
   for ent, blah in items(z_ents):
@@ -182,20 +386,81 @@ proc update* (r: PRoom; dt:float) =
   r.updateSys.execRCs r
   r.doomsys.run(r)
 
+proc countAliveKind* (R:PRoom; kind:PJsonNode): int =
+  proc contains (J:PJsonNode; str:string): bool =
+    if j.kind == jArray and j[0].kind == jString and j[0].str == "group":
+      if gamedata.groups.hasKey(j[1].str):
+        result = str in gamedata.groups[j[1].str]
+        return
+    result = (j.kind == jString and j.str == str)
+  
+  for ent in R.updateSys.active:
+    if R.getEnt(ent).get_name in kind:
+      inc result
+
+proc evalFloat* (J:PJsonNode; R: PRoom): float = 
+  if j.kind == jArray:
+    case j[0].str
+    of "entities-alive":
+      result = R.countAliveKind(j[1]).float
+      return
+  result = j.toFloat
+
+proc evalBool* (J:PJsonNode; R: PRoom): bool =
+  if j.kind == jArray:
+    case j[0].str
+    of "<":
+      result = j[1].evalFloat(R) < j[2].evalFloat(R)
+    of ">":
+      result = j[1].evalFloat(R) > j[2].evalFloat(R)
+    of "and":
+      result = j[1].evalBool(R)
+      if result: result = j[2].evalBool(R)
+    of "or":
+      result = j[1].evalBool(R)
+      if not result: result = j[2].evalBool(R)
+    of "not":
+      result = not j[1].evalBool(R)
+
+import private/emitter_type
+
+proc canFire (x: PEntity; e: PEmitterType; room: PRoom): bool =
+  result = true
+  if e.logic.has:
+    result = evalBool(e.logic.val, room)
+
+proc canFire* (x: PEntity; emitter: var Emitter; room: PRoom): bool =
+  if not x.canFire(emitter.e, room):
+    return
+  return emitter.cooldown <= 0
+
+proc createEntity (R: PRoom; X: PEntity; ET: PEmitterType) =
+
+  case et.kind.k
+  of emitterKind.single:
+    var ent = gameData.newEnt(r, et.emitsJson)
+    let 
+      angle = x.getAngle + et.angle
+    ent.setPos x.getPos 
+    ent.setVel (( x.getVel * et.inheritVelocity ) + angle.polarVector2d(et.muzzleVelocity))
+    
+    var ii = x[emitter].e.initialImpulse
+    ii.rotate x.getAngle
+    ent.impulse ii
+    r.add_ent ent
+  of emitterkind.multi:
+    for et in et.kind.multi:
+      createEntity r, x, et
+
 proc fireEmitter (e: PEntity) =
   if e[emitter].cooldown <= 0:
     e.scheduleRC do(x: PEntity; r: PRoom):
       # schedule an entity to be created
-      var ent = gameData.newEnt(x[emitter].emits)
-      let angle = x.getAngle
-      ent.setPos x.getPos
-      ent.impulse x.getVel * x[emitter].inheritVelocity
+      if not x.canFire(x[emitter], r):
+        return
       
-      var ii = x[emitter].initialImpulse
-      ii.rotate x.getAngle
-      ent.impulse ii
-      r.add_ent ent
-      x[emitter].cooldown = x[emitter].delay
+      r.createEntity x, x[emitter].e
+      x[emitter].cooldown = x[emitter].e.delay
 
 msgImpl(Emitter,update) do (dt: float):
   let e = entity[emitter].addr
@@ -206,8 +471,7 @@ msgImpl(Emitter,update) do (dt: float):
 msgImpl(Emitter,fire) do:
   entity.fireEmitter
 
-
-msgImpl(CollisionHandler, unserialize) do (J: PJsonNode):
+msgImpl(CollisionHandler, unserialize) do (J: PJsonNode; R: PRoom):
   if j.hasKey("CollisionHandler") and j["CollisionHandler"].kind == jObject:
     let j = j["CollisionHandler"]
     case j["action"].str
@@ -216,7 +480,7 @@ msgImpl(CollisionHandler, unserialize) do (J: PJsonNode):
       entity[collisionHandler].f = proc(self,other: PEntity) =
         other.setPos p
         other.scheduleRC do (x: PEntity; r: PRoom):
-          var ent = gameData.newEnt("warp-in")
+          var ent = gameData.newEnt(r, "warp-in")
           ent.setPos x.getPos
           r.add_ent ent
     of "destroy":

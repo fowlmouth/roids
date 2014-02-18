@@ -1,0 +1,3 @@
+{ "bounds":{"shape":"circle","radius":1000},
+  "playable":["hornet"],
+}

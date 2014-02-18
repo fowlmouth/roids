@@ -1,4 +1,5 @@
-import csfml,basic2d,os
+import csfml,basic2d,os,strutils,math
+proc ff (f:float;prec=2):string = formatFloat(f,ffDecimal,prec)
 
 
 proc right* (bb: TFloatRect): cfloat = bb.left + bb.width
@@ -7,7 +8,11 @@ proc bottom*(bb: TFloatRect): cfloat = bb.top + bb.height
 proc contains* (bb: TFloatRect; point: tuple[x,y: int]): bool =
   point.x.cfloat >= bb.left and point.x.cfloat <= bb.right and
     point.y.cfloat >= bb.top and point.y.cfloat <= bb.bottom
-
+proc expandToInclude* (bb: var TFloatRect; bb2: TFloatRect) =
+  bb.left = bb.left.min(bb2.left)
+  bb.top = bb.top.min(bb2.top)
+  bb.width = bb.right.max(bb2.right) - bb.left
+  bb.height = bb.bottom.max(bb2.bottom) - bb.top
 
 proc findFile (f: string; dirs: seq[string]): string =
   let oldD = getCurrentDir()
@@ -42,27 +47,34 @@ type
     getBB*: proc(G: PWidget): TFloatRect
     onClick*: proc (g: PWidget; btn: TMouseButton; x, y: int): bool 
 
+proc `$` (r: TFloatRect): string = 
+  "($1,$2,$3,$4)".format(
+    ff(r.left,1), ff(r.right,1), ff(r.width,1), ff(r.height,1))
 
 proc draw* (g: PWidget; w: PRenderWindow){.inline.}=
   g.vtable.draw(g, w)
 proc setPos* (g: PWidget; p: TPoint2d) {.inline.}=
   g.vtable.setPos(g,p)
 proc getBB*(g: PWidget): TFloatRect {.inline.}=
-  g.vtable.getBB(g)
+  result = g.vtable.getBB(g)
 proc onClick (g: PWidget; btn: TMouseButton; x, y: int): bool {.inline.}=
   result = g.vtable.onClick(g, btn, x,y)
 
 proc child*(g: PWidget): PWidget = g.sons[0]
 
 var
-  defaultVT = TWidgetVT()
+  defaultVT * = TWidgetVT()
 
 defaultVT.draw = proc(G: PWidget; W: PRenderWindow) =
   for s in g.sons: draw(s, w)
 defaultVT.setPos = proc(G: PWidget; P: TPoint2d) =
   discard
 defaultVT.getBB = proc(G: PWidget):TFloatRect = 
-  discard
+  if not(g.sons.isNil) and g.sons.len > 0:
+    result = g.sons[0].getBB
+    for i in 1 .. g.sons.len - 1:
+      result.expandToInclude g.sons[i].getBB
+
 defaultVT.onClick = proc (g: PWidget; btn: TMouseButton; x, y: int): bool =
   if not g.sons.isNil:
     for s in g.sons:

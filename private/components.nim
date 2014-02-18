@@ -1,128 +1,13 @@
 
-import strutils, csfml, csfml_colors,basic2d,json,math
-import fowltek/maybe_t
-import chipmunk as cp
+import 
+  strutils, csfml, csfml_colors,basic2d,json,math,
+  tables,
+  fowltek/maybe_t
+import chipmunk as cp except TBB
+import
+  private/tilesheet, private/common,
+  private/room_interface, private/emitter_type
 
-proc ff* (f: float; prec = 2): string = formatFloat(f, ffDecimal, prec)
-
-# the penalty for having sfml vectors and chipmunk vectors
-proc vector* [T: TNumber] (x, y: T): TVector = 
-  result.x = x.cpfloat
-  result.y = y.cpfloat
-proc vector* (v: TVector2d): TVector =
-  result.x = v.x
-  result.y = v.y
-proc vector* (v: TPoint2d): TVector = 
-  result.x = v.x
-  result.y = v.y
-proc vec2f* (v: TVector): TVector2f = TVector2f(x: v.x, y: v.y)
-proc vec2f* (v: TPoint2d): TVector2f = TVector2f(x: v.x, y: v.y)
-proc vector2d* (v: TVector): TVector2d =
-  result.x = v.x
-  result.y = v.y
-
-when not TVectorIsTVector2d:
-  proc point2d* (v: TVector): TPoint2d =
-    point2d(v.x, v.y)
-proc point2d* (v: TVector2d): TPoint2d=
-  point2d(v.x, v.y)
-proc point2d* (p: TVector2i): TPoint2d = point2d(p.x.float, p.y.float)
-
-proc distance*(a, b: TVector): float {.inline.} =
-  return sqrt(pow(a.x - b.x, 2.0) + pow(a.y - b.y, 2.0))
-
-proc `$`* (v: TVector2d): string =
-  "($1,$2) $3".format(v.x.ff, v.y.ff, v.angle.radToDeg.ff) 
-
-proc toggle* (switch: var bool){.inline.}=switch = not switch
-
-proc toInt* (n: PJSonNode): int =
-  case n.kind
-  of jINT:
-    result = n.num.int
-  else:
-    echo "this is not an int: ", n
-
-proc toFloat* (n: PJsonNode): float =
-  case n.kind
-  of jInt:
-    result = n.num.float
-  of jFloat:
-    result = n.fnum.float
-  of jString:
-    case n.str
-    of "random":
-      result = random(1.0)
-    of "infinity":
-      result = 1/0
-  of jArray:
-    case n[0].str
-    of "random":
-      # random(x) 
-      result = random(n[1].toFloat)
-    of "degrees":
-      # degToRad(x)
-      result = degToRad(n[1].toFloat)
-
-  else:
-    echo "Not a float value: ", n
-proc getFloat* (result: var float; j: PJsonNode; key: string, default = 0.0) =
-  if j.kind == JObject and j.hasKey(key):
-    result = j[key].toFloat
-  else:
-    when defined(Debug):
-      echo "Missing float key ",key
-    result = default
-
-proc vector2d* (n: PJSonNode): TVector2d =
-  if n.kind == jString:
-    case n.str
-    of "random-direction":
-      result = polarVector2d(deg360.random, 1.0)
-    return
-  
-  assert n.kind == jArray
-  if n[0].kind == jString:
-    case n[0].str
-    of "direction-degrees":
-      result = polarVector2d(n[1].toFloat.degToRad, 1.0)
-    
-    of "v_*_f", "mul_f":
-      result = n[1].vector2d * n[2].toFloat
-    else:
-      discard
-    return
-  
-  result.x = n[0].toFloat
-  result.y = n[1].toFloat
-proc point2d* (n: PJsonNode): TPoint2d =
-  assert n.len == 2
-  result.x = n[0].toFloat
-  result.y = n[1].toFLoat
-  
-proc getPoint* (result: var TPoint2d; j: PJsonNode; key: string; default = point2d(0,0)) =
-  if j.kind == JObject and j.hasKey(key):
-    result = point2d(j[key])
-  else:
-    result = default
-
-proc getInt* (result:var int; j:PJsonNode; key:string; default = 0) =
-  if j.kind == JObject and j.hasKey(key):
-    case j[key].kind
-    of jInt:
-      result = j[key].num.int
-    of jFloat:
-      result = j[key].fnum.int
-    else:
-      echo "Not an int value: ", j[key]
-      result = default
-  else:
-    when defined(Debug):
-      echo "Missing int key ", key
-    result = default
-
-
-import tables
 
 var collisionTypes = initTable[string, cuint](64)
 var next = 0.cuint
@@ -137,7 +22,7 @@ discard ct("default")
 import fowltek/entitty,fowltek/idgen,fowltek/boundingbox
 
 proc bb* (b: cp.TBB): boundingBox.TBB =
-  (b.l.float, b.t.float, (b.r - b.l).float, (b.b - b.t).float)
+  bb(b.l.float, b.t.float, (b.r - b.l).float, (b.b - b.t).float)
 
 
 proc addToSpace* (s: PSpace) {.multicast.}
@@ -148,18 +33,24 @@ proc impulse* (f: TVector2d) {.unicast.}
 proc setPos* (p: TPoint2d) {.unicast.}
 proc getPos* : TPoint2d {.unicast.}
 proc getAngle*: float {.unicast.}
+proc setVel* (v: TVector2d) {.unicast.}
 proc getVel* : TVector2d {.unicast.}
-proc getBB* : boundingbox.TBB {.unicast.}
 proc getBody*: TMaybe[cp.PBody]{.unicast.}
 proc getTurnspeed* : float {.unicast.}
 proc getFwSpeed* : float {.unicast.}
 proc getRvSpeed* : float {.unicast.}
 
+proc calculateBB* (result: var TBB) {.multicast.}
+proc getBB* (entity:PEntity): TBB =
+  let p = entity.getPos
+  result.left = p.x
+  result.top = p.y
+  entity.calculateBB result
 
 proc update* (dt: float) {.multicast.}
 proc draw* (R: PRenderWindow) {.unicast.}
 
-proc unserialize* (j: PJsonNode) {.multicast.}
+proc unserialize* (j: PJsonNode; R:PRoom) {.multicast.}
 
 proc handleCollision* (other: PEntity) {.multicast.}
 
@@ -172,6 +63,33 @@ proc getName* (e: PEntity): string =
 
 proc accumMass* (result: var float) {.multicast.}
 
+
+# room command chain
+# a queue of functions run so the entity has access to the room it is in
+type
+  TRCC_CB* = proc(x: PEntity; r: PRoom)
+  RCC* = object
+    commands*: seq[TRCC_CB]
+
+proc scheduleRC* (f: TRCC_CB) {.unicast.}
+
+
+RCC.setInitializer do (x: PEntity):
+  x[RCC].commands.newSeq 0
+  
+proc clear* (R: var RCC)= 
+  R.commands.setLen 0
+
+msgImpl(RCC,schedule_rc) do (f: TRCC_CB):
+  entity[RCC].commands.add f
+
+proc execRCs* (ent: PEntity; r: PRoom) =
+  if ent.hasComponent(RCC):
+    for c in ent[RCC].commands:
+      c(ent, r)
+    ent[RCC].clear
+
+
 type
   Inventory* = object
     items: seq[TEntity]
@@ -180,18 +98,6 @@ msgImpl(Inventory, accumMass) do (result:var float):
   for i in 0 .. < entity[inventory].items.len:
     entity[inventory].items[i].accumMass(result)
 
-
-import private/room_interface
-
-# room command chain
-# a queue of functions run so the entity has access to the room it is in
-
-type
-  TRCC_CB* = proc(x: PEntity; r: PRoom)
-  RCC* = object
-    commands*: seq[TRCC_CB]
-
-proc scheduleRC* (f: TRCC_CB) {.unicast.}
 
 
 
@@ -209,12 +115,12 @@ msgImpl(Body, getAngle) do -> float:
   entity[body].b.getAngle.float
 msgImpl(Body, getMass) do -> float:
   entity[body].b.getMass.float
-msgImpl(Body, getBB) do -> boundingbox.TBB:
-  bb(entity[body].s.getBB)
+msgImpl(Body, calculateBB, 1000) do (result: var TBB):
+  result.expandToInclude(entity[body].s.getBB.bb)
 msgImpl(Body, getBody) do -> TMaybe[cp.PBody]:
   maybe(entity[body].b)
 
-msgImpl(Body, unserialize) do (J: PJsonNode):
+msgImpl(Body, unserialize) do (J: PJsonNode; R:PRoom):
   if j.hasKey("Body"):
     let j = j["Body"]
     
@@ -269,6 +175,8 @@ msgImpl(Body, setPos) do (p: TPoint2d):
 msgImpl(Body, getPos) do -> TPoint2d:
   point2d(entity[body].b.p)
 
+msgImpl(Body,setVel) do (v: TVector2d):
+  entity[body].b.setVel vector(v)
 msgImpl(Body, getVel) do -> TVector2d:
   vector2d(entity[Body].b.getVel)
 
@@ -339,7 +247,7 @@ type
     force*: float
 GravitySensor.requiresComponent Body
 
-msgImpl(GravitySensor, unserialize) do (J: PJsonNode):
+msgImpl(GravitySensor, unserialize) do (J: PJsonNode; R:PRoom):
   if j.hasKey("GravitySensor"):
     let j = j["GravitySensor"]
     var radius: float
@@ -355,73 +263,88 @@ msgImpl(GravitySensor, addToSpace) do (S: PSpace):
   
 
 
-import os, re
-type
-  PTilesheet* = ref object
-    file*: string
-    tex*: PTexture
-    rect*: TIntRect
-    rows*,cols*: int
-
-proc create* (t: PTilesheet; row, col: int): PSprite =
-  result = newSprite()
-  result.setTexture t.tex, false
-  var r = t.rect
-  r.left = cint(col * r.width)
-  r.top = cint(row * r.height)
-  result.setTextureRect r 
-  result.setOrigin vec2f(r.width / 2, r.height / 2)
-
-var 
-  cache = initTable[string,PTilesheet](64)
-  imageFilenamePattern = re".+_(\d+)x(\d+)\.\S{3,4}"
-const
-  assetsDir = "assets"
-
-proc free* (T: PTilesheet) =
-  destroy t.tex
-
-proc tilesheet* (file: string): PTilesheet =
-  result = cache[file]
-  if not result.isNil:
-    return
-  
-  var img = newImage(assetsdir / file)
-  
-  new result, free
-  result.file = file
-  let sz = img.getSize
-  result.tex = img.newTexture
-  
-  if file =~ imageFilenamePattern:
-    result.rect.width = matches[0].parseInt.cint
-    result.rect.height = matches[1].parseInt.cint
-  result.cols = int(sz.x / result.rect.width)
-  result.rows = int(sz.y / result.rect.height)
-  destroy img
-  cache[file] = result
 
 
+
+# draw scale (0.0 to 1.0)
+proc getscale_pvt(result:var cfloat) {.unicast.}
+proc getscale* (E: PEntity): TVector2f = 
+  result.x = 1.0
+  E.getscalePVT result.x
+  result.y = result.x
+
+type SpriteScale* = object
+  s*:float
+SpriteScale.componentInfo.name = "Scale"
+msgImpl(SpriteScale, unserialize)do(J:PjsonNode; R:PRoom):
+  withKey(j, "Scale", s):
+    entity[spritescale].s = j["Scale"].toFloat
+msgImpl(SpriteScale, getScalePVT, 1) do (result: var cfloat):
+  result = entity[spritescale].s
+
+
+proc bbCentered* (p: TPoint2d; w, h: float): boundingbox.TBB =
+  bb( p.x - (w/2) , p.y - (h/2) , w, h)
 
 type
-  AnimatedSprite = object
+  Sprite* = object
+    s: PSprite
+    w,h: int
+
+Sprite.setDestructor do (X:PEntity): 
+  if not X[Sprite].s.isNil:
+    destroy X[Sprite].s
+
+msgImpl(Sprite,unserialize) do (J:PJsonNode; R:PRoom):
+  withKey(j, "Sprite", j):
+    let sp = entity[sprite].addr
+    withKey(j,"file",f):
+      let t = tilesheet(f.str)
+      sp.s = t.create(0,0)
+      sp.w = t.rect.width
+      sp.h = t.rect.height
+    withkey(j,"origin",j):
+      if not sp.s.isNil:
+        sp.s.setOrigin vec2f(point2d(j))
+    withKey(j,"repeated-texture",rt):
+      if not sp.s.isNil:
+        sp.s.getTexture.setRepeated(rt.bval)
+    withkey(j,"texture-rect-size",trs):
+      let sz = trs.point2d
+      var r = sp.s.getTextureRect
+      r.width=sz.x.cint
+      r.height=sz.y.cint
+      sp.s.setTextureRect r
+      
+msgImpl(Sprite,draw) do (R:PRenderWindow):
+  let s = entity[sprite].s
+  s.setPosition entity.getPos.vec2f
+  s.setRotation entity.getAngle.radToDeg
+  s.setScale entity.getScale
+  R.draw s
+
+msgImpl(Sprite,calculateBB) do (result: var TBB):
+  let scale = entity.getScale
+  result.expandToInclude(
+    bbCentered(
+      entity.getPos, 
+      entity[sprite].w.float * scale.x, 
+      entity[sprite].h.float * scale.y
+    )
+  )
+
+
+type
+  AnimatedSprite = object 
     t: PTilesheet
     index: int
     timer: float
     delay: float
-    scale: TVector2f
 
 AnimatedSprite.setInitializer do (e: PEntity):
   e[animatedsprite] = AnimatedSprite(timer: 1.0, delay: 1.0, index: 0)
-  e[animatedsprite].scale = vec2f(1,1)
 
-template withKey (J: PJsonNode; key: string; varname: expr; body:stmt): stmt {.immediate.}=
-  if j.hasKey(key):
-    let varname{.inject.}= j[key]
-    block:
-      body
-
-msgImpl(AnimatedSprite, unserialize) do (j: PJsonNode):
+msgImpl(AnimatedSprite, unserialize) do (j: PJsonNode; R:PRoom):
   if j.hasKey("AnimatedSprite"):
     let j = j["AnimatedSprite"]
     let sp = entity[animatedsprite].addr
@@ -434,9 +357,6 @@ msgImpl(AnimatedSprite, unserialize) do (j: PJsonNode):
     withKey(j, "delay-ms", d):
       sp.delay = d.toFloat / 1000
       sp.timer = sp.delay
-    withKey(j, "scale", s):
-      let s = s.toFloat
-      sp.scale = vec2f(s,s)
 
 msgImpl(AnimatedSprite, update) do (dt: float):
   let sp = entity[animatedsprite].addr
@@ -449,9 +369,17 @@ msgImpl(AnimatedSprite, draw, 9001) do (R: PRenderWindow):
   var s = entity[animatedsprite].t.create(0,entity[animatedsprite].index)
   s.setPosition entity.getPos.vec2f 
   s.setRotation entity.getAngle.radToDeg
-  s.setScale entity[animatedsprite].scale
+  s.setScale entity.getScale
   R.draw s
   destroy s
+
+msgImpl(AnimatedSprite, calculateBB) do (result:var TBB):
+  let scale = entity.getScale
+  result.expandToInclude(bbCentered(
+    entity.getPos,
+    entity[animatedsprite].t.rect.width.float * scale.x, 
+    entity[animatedsprite].t.rect.height.float * scale.y
+  ))
 
 type
   OneShotAnimation* = object
@@ -459,15 +387,13 @@ type
     index*: int
     delay*: float
     timer*: float
-    scale*: TVector2f
 
 OneShotAnimation.setInitializer do (E: PEntity):
   let osa = e[oneshotanimation].addr
   osa.delay = 1.0
   osa.timer = osa.delay
-  osa.scale = vec2f(1,1)
 
-msgImpl(OneShotAnimation,unserialize) do (J: PJsonNOde):
+msgImpl(OneShotAnimation,unserialize) do (J: PJsonNOde; R:PRoom):
   if j.hasKey("OneShotAnimation"):
     let j = j["OneShotAnimation"]
     let sp = entity[oneshotanimation].addr
@@ -479,15 +405,12 @@ msgImpl(OneShotAnimation,unserialize) do (J: PJsonNOde):
     withKey(j, "delay", d):
       sp.delay = d.toFloat
       sp.timer = sp.delay
-    withKey(j, "scale", s):
-      let s = s.toFloat
-      sp.scale = vec2f(s,s)
 
 msgImpl(OneShotAnimation,draw,9001) do (R: PRenderWindow):
   let s = entity[oneshotanimation].t.create(0, entity[oneshotanimation].index)
   s.setPosition entity.getPos.vec2f
   s.setRotation entity.getAngle.radToDeg
-  s.setScale entity[oneshotanimation].scale
+  s.setScale entity.getScale
   R.draw s
   destroy s
 
@@ -506,7 +429,7 @@ type
     t: PTilesheet
     roll: float
 
-msgImpl(RollSprite, unserialize) do (J: PJsonNode):
+msgImpl(RollSprite, unserialize) do (J: PJsonNode; R:PRoom):
   if J.hasKey("RollSprite"):
     let j = j["RollSprite"]
     entity[rollSprite].t = tilesheet(j["file"].str)
@@ -537,9 +460,9 @@ msgImpl(RollSprite, update) do (dt: float):
 
 type
   Named* = object
-    s: string
+    s*: string
 
-msgImpl(Named, unserialize) do (J: PJsonNode):
+msgImpl(Named, unserialize) do (J: PJsonNode; R:PRoom):
   if J.hasKey("Named") and J["Named"].kind == jString:
     entity[Named].s = J["Named"].str
 msgImpl(Named, getName) do (result:var string):
@@ -562,53 +485,28 @@ msgImpl(CollisionHandler, handleCollision) do (other: PEntity) :
 
 
 
-RCC.setInitializer do (x: PEntity):
-  x[RCC].commands.newSeq 0
-  
-proc clear* (R: var RCC)= 
-  R.commands.setLen 0
-
-msgImpl(RCC,schedule_rc) do (f: TRCC_CB):
-  entity[RCC].commands.add f
-
-proc execRCs* (ent: PEntity; r: PRoom) =
-  if ent.hasComponent(RCC):
-    for c in ent[RCC].commands:
-      c(ent, r)
-    ent[RCC].clear
-
-
 
 type
   Emitter* = object
-    delay*: float
+    e*: PEmitterType
     cooldown*: float
-    emits*: PJsonNode
-    initialImpulse*: TVector2d
-    inheritVelocity*: float
     mode*: EmitterMode
   EmitterMode* {.pure.}=enum
-    auto, manual
+    manual, auto
 
-msgImpl(Emitter,unserialize) do (J: PJsonNode):
-  if j.hasKey("Emitter") and j["Emitter"].kind == jObject:
-    let j = j["Emitter"]
-    if j.hasKey("delay-ms"):
-      entity[Emitter].delay = j["delay-ms"].num.int / 1000
-    elif j.hasKey("delay"):
-      entity[Emitter].delay.getFloat j,"delay", 0.250
+msgImpl(Emitter,unserialize) do (J: PJsonNode; R:PRoom):
+  withKey(j, "Emitter", j):
+    if j.kind == jObject:
+      entity[Emitter].e = emitterTy("anonymous emitter", j)
+      
+      if j.hasKey"mode":
+        if j["mode"].str == "manual":
+          entity[Emitter].mode = EmitterMode.manual
+        else:
+          entity[Emitter].mode = EmitterMode.auto
+    elif j.kind == jString:
+      entity[emitter].e = r.gameData.emitters[j.str]
 
-    if j.hasKey"emits":
-      entity[Emitter].emits = j["emits"]
-    if j.hasKey"mode":
-      if j["mode"].str == "manual":
-        entity[Emitter].mode = EmitterMode.manual
-      else:
-        entity[Emitter].mode = EmitterMode.auto
-    if j.hasKey"initial-impulse":
-      entity[emitter].initialImpulse = vector2d(j["initial-impulse"])
-    if j.hasKey"inherit-velocity":
-      entity[emitter].inheritVelocity = j["inherit-velocity"].toFloat
 # Emitter#update and #fire is in room.nim
 
 type
@@ -618,7 +516,7 @@ msgImpl(Position,setPos) do (p: TPoint2d):
   entity[position].p = p
 msgImpl(Position,getPos) do -> TPoint2d:
   entity[position].p
-msgImpl(Position,unserialize) do (J: PJsonNode):
+msgImpl(Position,unserialize) do (J: PJsonNode; R:PRoom):
   if j.hasKey("Position") and j["Position"].kind == jArray:
     entity[Position].p = point2d(j["Position"])
     echo entity[Position].p
@@ -630,7 +528,7 @@ type
 msgImpl(Orientation,getAngle) do -> float:
   entity[Orientation].angle
 
-msgIMpl(Orientation,unserialize)do(J:PJsonNode):
+msgIMpl(Orientation,unserialize)do(J:PJsonNode; R:PRoom):
   if j.hasKey("Orientation"):
     entity[Orientation].angle = j["Orientation"].toFloat
 
@@ -640,7 +538,7 @@ import macros
 template simpleComp(name): stmt {.immediate.} =
   type name * = object
     val: float
-  msgImpl(name, unserialize) do (J: PJsonNode):
+  msgImpl(name, unserialize) do (J: PJsonNode; R:PRoom):
     if j.hasKey(astToStr(name)):
       entity[name].val = j[astToStr(name)].toFloat
 
@@ -652,7 +550,7 @@ msgImpl(AngularDampners, update) do (dt: float):
 
 type Actuators* = object
   turnSpeed*: float
-msgImpl(Actuators, unserialize) do (J:PJsonNode):
+msgImpl(Actuators, unserialize) do (J:PJsonNode; R:PRoom):
   if j.hasKey"Actuators":
     entity[actuators].turnSpeed = j["Actuators"].toFloat
 msgImpl(Actuators,getTurnspeed) do -> float:
@@ -661,7 +559,7 @@ msgImpl(Actuators,getTurnspeed) do -> float:
 
 type Thrusters* = object
   rvSpeed*, fwSpeed*:float
-msgImpl(Thrusters,unserialize) do(J:PJsonNOde):
+msgImpl(Thrusters,unserialize) do(J:PJsonNOde; R:PRoom):
   if j.hasKey"Thrusters" and j["Thrusters"].kind == jObject:
     let j = j["Thrusters"]
     if j.hasKey"fwspeed": entity[Thrusters].fwspeed = j["fwspeed"].toFloat
@@ -682,7 +580,82 @@ type ZOrder* = object
   z*: int
 msgImpl(ZOrder, getZorder) do -> int:
   entity[ZOrder].z
-msgImpl(ZOrder, unserialize) do (J:PJsonNode):
+msgImpl(ZOrder, unserialize) do (J:PJsonNode; R:PRoom):
   if j.hasKey"ZOrder":
     entity[ZOrder].z = j["ZOrder"].toInt
+
+type Parallax* = object
+  offs*: float
+
+
+
+type Owned* = object
+  by*: int
+proc getOwner* : int {.unicast.}
+proc setOwner* (ent:int) {.unicast.}
+msgImpl(Owned, getOwner) do -> int:
+  return entity[Owned].by
+msgImpl(Owned, setOwner) do (ent:int):
+  entity[Owned].by = ent
+
+type PlayerController* = object
+
+type
+  TeamMember* = object
+    team*: int
+
+type
+  Role* = object
+    roles*: seq[string]
+
+Role.setInitializer do (x:PEntity):
+  x[role].roles.newSeq 0
+msgimpl(Role,unserialize) do (J:PJsonNode; R:PRoom):
+  withKey(j,"Role",j):
+    if j.kind == jArray:
+      for j_object in j.items:
+        entity[role].roles.add j_object.str
+    elif j.kind == jString:
+      entity[role].roles.add(j.str)
+
+proc hasRole* (x: PEntity; r: string): bool =
+  x.hasComponent(Role) and x[Role].roles.find(r) != -1
+
+
+type
+  Lifetime* = object
+    time*: float
+
+msgImpl(Lifetime,unserialize) do (J:PJsonNode; R:PRoom):
+  withKey(j,"Lifetime",j):
+    entity[Lifetime].time = j.toFloat
+msgImpl(Lifetime, update) do (dt:float):
+  entity[Lifetime].time -= dt
+  if entity[Lifetime].time <= 0:
+    entity.scheduleRC do (X: PEntity; R: PRoom):
+      r.doom(x.id)
+
+type
+  VelocityLimit* = object
+    limit: float
+
+msgImpl(VelocityLimit, unserialize) do (J:PJsonNode; R:PRoom):
+  withKey(j,"VelocityLimit",j):
+    entity[velocityLimit].limit = j.toFloat
+msgIMpl(VelocityLimit, update) do (dt: float):
+  let v = entity.getVel
+  if v.len > entity[velocityLimit].limit:
+    entity.setVel v * 0.95
+
+type Radar* = object
+  r*: float # range
+
+Radar.setInitializer do (X: PEntity):
+  x[radar].r = 1000.0
+proc bb* (R: Radar; P: TPoint2d): TBB =
+  bb(
+    p.x - (r.r / 2),
+    p.y - (r.r / 2),
+    r.r, r.r
+  )
 

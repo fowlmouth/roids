@@ -1,0 +1,179 @@
+{
+  "ast0": {
+    "AnimatedSprite": { "file": "Rock24a_24x24.png" , "delay": 0.1 },
+    "Body": { "mass": 0.5, "shape": "circle", "radius": 8.5,"elasticity":0.3 }
+  },"ast1":{
+    "AnimatedSprite": { "file": "Rock24b_24x24.png" , "delay": 0.1 },
+    "Body": { "mass": 0.6, "shape": "circle", "radius": 9,"elasticity":0.3 }
+  },"ast2":{
+    "AnimatedSprite": { "file": "Rock32a_32x32.png" , "delay": 0.1 },
+    "Body": { "mass": 0.89, "shape": "circle", "radius": 13,"elasticity":0.3 }
+  },"ast3":{
+    "AnimatedSprite": { "file": "Rock48a_48x48.png" , "delay": 0.1 },
+    "Body": { "mass": 1.8, "shape": "circle", "radius": 18,"elasticity":0.3 }
+  },"ast4":{
+    "AnimatedSprite": { "file": "Rock48b_48x48.png" , "delay": 0.1 },
+    "Body": { "mass": 1.8, "shape": "circle", "radius": 16,"elasticity":0.3 }
+  },"ast5":{
+    "AnimatedSprite": { "file": "Rock48c_48x48.png" , "delay": 0.1 },
+    "Body": { "mass": 1.8, "shape": "circle", "radius": 18,"elasticity":0.3 }
+  },"ast6":{
+    "AnimatedSprite": { "file": "Rock64a_64x64.png" , "delay": 0.1 },
+    "Body": { "mass": 2.1, "shape": "circle", "radius": 26,"elasticity":0.3 }
+  },"ast7":{
+    "AnimatedSprite": { "file": "Rock64b_64x64.png" , "delay": 0.1 },
+    "Body": { "mass": 2.2, "shape": "circle", "radius": 26,"elasticity":0.3 }
+  },"ast8":{
+    "AnimatedSprite": { "file": "Rock64c_64x64.png" , "delay": 0.1 },
+    "Body": { "mass": 2.2, "shape": "circle", "radius": 26,"elasticity":0.3 }
+    
+  },"bullet1":{
+    "AnimatedSprite": { "file": "EbulletA_12x12.png", "delay": 0.1 },
+    "Body": { "mass": 0.3, "shape": "circle", "radius": 3 },
+    "Damage": {
+    
+    },
+    "Lifetime": 2.8
+    
+  },"wormhole":{
+  
+    "AnimatedSprite": { "file": "wormhole_192x192.png", "delay": 0.1 },
+    "Body": { "mass": "infinity", "shape": "circle", "radius": 5,"elasticity":0.3 },
+    "GravitySensor" : { "radius": 1300, "force": 8000 } ,
+    "CollisionHandler": {"action": "warp", "position": [30,30]}
+    
+  },"weak wormhole":{
+  
+    "AnimatedSprite": { "file": "wormhole_192x192.png", "delay": 0.1 },
+    "Body": { "mass": "infinity", "shape": "circle", "radius": 5,"elasticity":0.3 },
+    "GravitySensor" : { "radius": 500, "force": 1600 } ,
+    "CollisionHandler": {"action": "warp", "position": [30,30]}
+  
+  },"blackhole":{
+  
+    "Body":{"mass":"infinity","shape":"circle","radius":1,"elasticity":0},
+    "GravitySensor": {"radius": 1600, "force": 100000}
+    
+  },"asteroid creator":{
+  
+    "Components": ["Position", "Orientation"],
+    "Emitter": {
+      "emits": ["group", "asteroids"],
+      "delay-ms": 2000,
+      "logic": ["<", ["entities-alive", ["group", "asteroids"]], 100]
+    }
+
+  },"hornet":{
+  
+    "RollSprite": { "file": "terran/hornet_54x54.png" },
+    "Body": { "mass": 10.0, "shape": "circle", "radius": 18 },
+    "Components": ["InputController"],
+    "Actuators": 39300,
+    "Thrusters": {
+      "fwspeed": 45,
+      "rvspeed": -1,
+    },
+    "Emitters": ["P-Cannon"],
+    "Emitter": "QPC",
+    "AngularDampners": 0.94,
+    "VelocityLimit": 350.0,
+    "Health": 70,
+    "Battery": {"capacity":1700,"regen-rate":650}
+
+  },"a09":{
+  
+    "RollSprite": {"file": "A09_54x54.png"},
+    "Body": {"mass": 10.0, "shape": "circle", "radius": 18},
+    "Components": ["InputController"],
+    "Actuators": 1380,
+    "Thrusters": {
+      "fwspeed": 45,
+      "rvspeed": -1,
+    },
+    "Emitter": {
+      "emits": "bullet1",
+      "delay-ms": 80,
+      "inherit-speed": 100.0,
+    },
+    "AngularDampners":0.98,
+    "Health":55
+    
+  },"DefSat":{
+    "Sprite":{"file":"turrets/DefSat_54x54.png"},
+    "Body":{"mass":50,"shape":"circle","radius":18},
+    "Components":["InputController"],
+    "Actuators": 15000,
+    "Emitter": {
+      "emits":"bullet1",
+      "delay-ms":80,
+      "muzzle-velocity":12.7
+    }
+
+  },"iron": {
+    "AnimatedSprite": { "file": "resources/IronOre_32x32.png" },
+    "Body": { "shape": "circle", "radius": 14, "mass": 1.0 },
+  },"resourceA":{
+    "AnimatedSprite":{"file":"resources/ResourceA_26x26.png"},
+    "Body":{"shape":"circle","radius":14,"mass":1.0},
+  },"resourceB":{
+    "AnimatedSprite":{"file":"resources/ResourceB_26x26.png"},
+    "Body":{"shape":"circle","radius":14,"mass":1.0},
+  
+  },"iron-asteroid": {
+  
+    "AnimatedSprite": { "file": "Rock48b_48x48.png" , "delay": 0.1 },
+    "Body": { "mass": 1.8, "shape": "circle", "radius": 18,"elasticity":0.3 },
+    "Inventory": [
+      ["iron", 4]
+    ],
+    "Health": 40,
+    "Armor": {
+      "Kinetic" : 0.1
+    }
+    
+  },"planetopia": {
+  
+    "AnimatedSprite": {"file":"planets/planet6_300x300.png"},
+    "Body":{"mass": 100, "shape":"circle", "radius":95, "elasticity":0.3},
+    "Health":50000,
+    "GravitySensor": {"force": 2500, "radius": 500}
+    
+  },"luna":{
+
+    "AnimatedSprite":{"file":"planets/planet20_300x300.png"},
+    "Scale":0.5,
+    "Body":{"mass": 50, "shape":"circle", "radius": 46, "elasticity": 0.3},
+    "Health":20000,
+    "GravitySensor": {"force": 500, "radius": 210}
+
+  },"warp-in": {
+
+    "OneShotAnimation": {"file":"warp_128x128.png","delay-ms":25},
+    "ZOrder": -1,
+    "Components":["Position"]
+  
+  },"flag":{
+    "AnimatedSprite":{"file":"foo"}
+    
+  },"Spawn Point":{
+    
+    "Components": ["Position", "Area"],
+    "Role":"spawn-point",
+  
+  },"Solar Mold":{
+    "AnimatedSprite":{"file":"turrets/spaceMold_80x80.png", "delay-ms":70},
+    "Body":{"mass":60,"shape":"circle","radius":38}
+    
+  },"starfield1":{
+    "Sprite":{"file":"parallax/star000_512x512.png","origin":[0,0]
+      ,"repeated-texture":true,"texture-rect-size":[10000,10000]},
+    "Parallax":0.8
+  },"starfield2":{
+    "Sprite":{"file":"parallax/star010_512x512.png","origin":[0,0],"repeated-texture":true,"texture-rect-size":[10000,10000]},
+    "Parallax":0.8
+  },"starfield3":{
+    "Parallax":0.1,
+    "Sprite":{"file":"parallax/star020_512x512.png","origin":[0,0],"repeated-texture":true,"texture-rect-size":[10000,10000]}
+  }
+  
+}

@@ -1,0 +1,8 @@
+{
+  "Orion": [
+    ["Spawn Point", {
+      "Position": [20,20],
+      "Area": {"w": 10, "h": 10}
+    }]
+  ]
+}

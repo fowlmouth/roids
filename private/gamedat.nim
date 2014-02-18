@@ -1,19 +1,13 @@
-import fowltek/entitty, tables, json,math, 
-  private/components
+import fowltek/entitty, tables, json,math, os,
+  private/components, private/common, private/room_interface,
+  private/emitter_type,
+  basic2d,
+  fowltek/maybe_t
 
 var
   dom* = newDomain()
-type
-  PGameData* = var TGameData
-  TGameData * = object
-    entities*: TTable[string,TJent] # ent name => typeinfo and json data
-    groups*: TTable[string, seq[string]] # group name => @[ ent names ]
-    j*: PJsonNode 
-  TJent* = tuple
-    ty: PTypeinfo
-    j1, j2: PJsonNode
 
-proc randomFromGroup* (m: var TGameData; group: string): string =
+proc randomFromGroup* (m: PGameData; group: string): string =
   if m.groups.hasKey(group):
     let len = m.groups.mget(group).len
     return m.groups.mget(group)[random(len)]
@@ -24,21 +18,54 @@ proc safeFindComponent* (n:string): int =
   except:
     result = -1
 
-proc loadGameData* (f = "ships.json"): TGameData =
-  result.j = json.parseFile(f)
-  result.entities = initTable[string,TJent](64) 
+
+let defaultComponents = components(RCC, Named)
+
+proc loadGameData* (dir: string): PGameData =
+  let thisDir = "data"/dir
+  if not dirExists(thisDir):
+    raise newException(EBase,"Missing directory "& thisDir)
+  
+  result = PGameData()
+  result.j = json.parseFile(ThisDir/"zone.json")
+  result.dir = dir
+  result.entities = initTable[string,TJent](64)
   result.groups = initTable[string,seq[string]](64)
+  result.rooms = initTable[string,PJsonNode](64)
+  result.emitters = initTable[string,PEmitterType](64)
 
   template maybeAdd (seq; c): stmt =
     if(;let id = safeFindComponent(c); id != -1):
       seq.add id
 
-  var defaultComponents: seq[int] = @[]
-  if result.j.hasKey("required-components"):
-    for c in result.j["required-components"]:
-      defaultComponents.maybeAdd c.str
+  for r in walkFiles(thisDir/"rooms/*.json"):
+    let
+      j = json.parseFile(r)
+    var
+      room_name = r.extractFilename.changeFileExt("")
+    
+    if not j.hasKey("name"):
+      j["name"] = %room_name
+    else:
+      room_name = j["name"].str
+    
+    result.rooms[room_name] = j
 
-  for name, x in result.j["entities"].pairs:
+  
+  if result.j.hasKey"first-room":
+    result.firstRoom = result.j["first-room"].str
+  else:
+    for r, whocares in result.rooms:
+      result.firstRoom = r
+      break
+
+  for name, x in json.parseFile(thisdir/"emitters.json").pairs:
+    let em = emitterTy(name, x)
+    result.emitters[em.name] = em
+  for key in result.emitters.keys:
+    result.emitters[key].settle result.emitters
+
+  for name, x in json.parseFile(thisDir/"entities.json").pairs:
     var comps = defaultComponents
     for key, blah in x.pairs:
       comps.maybeAdd key
@@ -57,19 +84,19 @@ proc loadGameData* (f = "ships.json"): TGameData =
       if result.entities.hasKey(s.str):
         result.groups.mget(name).add s.str
 
-proc new_ent* (d: PGameData; name: string): TEntity =
+proc new_ent* (d: PGameData; R: PRoom; name: string): TEntity =
   when defined(debug):
     echo "instantiating " , name
   let tj = d.entities.mget(name).addr
   result = tj.ty.newEntity
-  result.unserialize tj.j1
-  result.unserialize tj.j2
+  result.unserialize tj.j1, r
+  result.unserialize tj.j2, r
 
-proc new_ent* (d: PGameData; name: PJsonNode): TEntity =
+proc new_ent* (d: PGameData; R: PRoom; name: PJsonNode): TEntity =
   if name.kind == jArray:
     if name[0].kind == jString and name[0].str == "group":
-      return d.new_ent(d.random_from_group(name[1].str))
+      return d.new_ent(r, d.random_from_group(name[1].str))
   elif name.kind == jString:
-    return d.new_ent(name.str)
+    return d.new_ent(r, name.str)
 
 

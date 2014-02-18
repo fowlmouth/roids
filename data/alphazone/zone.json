@@ -1,0 +1,15 @@
+{
+  "first-room": "system1",
+  "groups": {
+    "asteroids": [
+      "ast0","ast1","ast2","ast3","ast4","ast5","ast6","ast7","ast8","ast9"
+    ],
+    "big asteroids": [
+      "ast8","ast7","ast6"
+    ],"med asteroids":[
+      "ast5","ast4","ast3"
+    ],"small asteroids":[
+      "ast2","ast1","ast0"
+    ]
+  }
+}

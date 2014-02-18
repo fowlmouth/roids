@@ -1,0 +1,46 @@
+{
+  "bounds": {
+    "width": 4000, "height": 4000
+  },"playable":[
+    "hornet","a09"
+  ],
+  "start-camera":[2000,2000],
+  "objects":[
+    ["wormhole", {
+      "Position": [2000,2000],
+    }],
+    {"obj": "planetopia", "extra-data": {
+      "Position": [1900,1500],
+      "Body":{"mass":20},
+      "initial-impulse": ["mul_f", ["direction-degrees", 0], 100]
+    }},
+    {"obj":"luna", "extra-data":{
+      "Position": [1900,1150],
+      "Body": {"mass":10},
+      
+    }},
+    ["luna", {
+      "Position": [1000,1000],
+      "initial-velocity": ["mul_f", ["direction-degrees", 0], 100]
+    }],
+    [["group","small asteroids"], 3, {
+      "Position": [2000,3000],
+      "initial-impulse": ["mul_f", ["direction-degrees", 180], 5]
+    }],
+    
+    ["starfield1",{"Parallax":1.5}],
+    ["starfield2",{"Parallax":0.6}],
+    ["starfield3",{"Parallax":0.001}],
+  ],"teams":{
+    "Orion": [
+      ["Spawn Point", {
+        "Position": [200,200],
+        "Area": {"w": 10, "h": 10}
+      }]
+    ],
+    "Taurus": [
+      ["Spawn Point",{"Position":[3800,3800],"Area":{"w":10,"h":10}}]
+      
+    ]
+  }
+}

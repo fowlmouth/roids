@@ -1,7 +1,7 @@
-import chipmunk as cp
-import csfml,csfml_colors, private/components
+import chipmunk as cp except TBB
+import csfml,csfml_colors, private/components,private/common
 
-proc debugDrawShape (shape: cp.PShape; w: PRenderWindow){.cdecl.}=
+proc debugDrawShape* (shape: cp.PShape; w: PRenderWindow){.cdecl.}=
   case shape.klass.kind
   of cp_circle_shape:
     var c {.global.} = newCircleShape(1.0, 30)
@@ -26,5 +26,34 @@ proc debugDrawShape (shape: cp.PShape; w: PRenderWindow){.cdecl.}=
   else:
     discard
 
-proc debugDraw* (w: PRenderWindow; space: PSpace) =
-  space.eachShape(cast[TSpaceShapeIteratorFunc](debugDrawShape), cast[pointer](w))
+import fowltek/bbtree, fowltek/boundingbox, private/room_interface
+
+proc setup (va: PVertexArray; bb: TBB) =
+  va.setPrimitiveType csfml.LinesStrip
+  va.resize 5
+  va[0].position = vec2f(bb.left, bb.top)
+  va[1].position = vec2f(bb.right,bb.top)
+  va[2].position = vec2f(bb.right,bb.bottom)
+  va[3].position = vec2f(bb.left,bb.bottom)
+  va[4].position = vec2f(bb.left, bb.top)
+proc setup (rect: PRectangleShape; bb: TBB) =
+  rect.setOrigin vec2f(0,0)
+  rect.setPosition vec2f(bb.left, bb.top)
+  rect.setSize vec2f(bb.width, bb.height)
+
+proc debugDraw* (w: PRenderWindow; node: PBBNode[int]; drawobj: PVertexArray|PRectangleShape) =
+  mixin setup
+  drawObj.setup node.getBB
+  w.draw drawObj
+  
+  if not node.isLeaf:
+    w.debugDraw node.a, drawobj
+    w.debugDraw node.b, drawobj
+
+let bbtree_obj = newVertexArray()
+proc debugDraw* (w: PRenderWindow; room: PRoom) =
+  room.physSys.space.eachShape(
+    cast[TSpaceShapeIteratorFunc](debugDrawShape), 
+    cast[pointer](w)
+  )
+  w.debugDraw room.renderSys.tree.getRoot, bbtree_obj

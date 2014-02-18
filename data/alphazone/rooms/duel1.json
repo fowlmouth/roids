@@ -1,0 +1,49 @@
+{
+  "bounds": [
+    [20, 20], [1980, 20], [1980, 1980], [20, 1980]
+  ],
+  "playable": [
+    "hornet", "a09"
+  ],
+  "start-camera": [1000,1000],
+  "objects": [
+    { "obj": "iron",
+      "extra-data": {
+        "Position":[1,1]
+      }
+    },
+    { "obj": "asteroid creator",
+      "extra-data": {
+        "Position": [600,1000],
+        "Orientation": ["degrees", -45],
+        "Emitter": {
+          "initial-impulse": ["mul_f",["direction-degrees", 0], 250.0],
+          "mode": "auto",
+        }
+      }
+    },
+    { "obj": "wormhole" ,
+      "extra-data": {
+        "initial-position": [1000,1000],
+        "GravitySensor": {"force": 120000}
+      }
+    },
+    { "obj": "bullet1", 
+      "extra-data": {
+        "initial-position": [500,500],
+        "initial-impulse": ["mul_f", ["direction-degrees", 90], 1000.0 ] 
+      }   
+    },
+    { "group": "asteroids", "count": 0,  
+      "extra-data": {
+        "initial-position": [200,200],
+        "initial-impulse": ["mul_f", "random-direction", 300.0] }
+    },
+    { "group": "asteroids", "count": 0, 
+      "extra-data": {
+        "initial-position": [200,210],
+        "initial-impulse": ["mul_f", "random-direction", 90.0 ]
+      }
+    }
+  ]
+}

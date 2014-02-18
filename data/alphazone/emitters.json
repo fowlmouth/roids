@@ -1,0 +1,24 @@
+{
+  "P-Cannon": {
+    "emits": "bullet1",
+    "delay-ms": 83,
+    "inherit-velocity": 0.9,
+    "muzzle-velocity": 220.666,
+    "angle":0
+  },"Tri-P-Cannon": {
+    "emits": [
+      ["P-Cannon", {"angle":["degrees",-30]}],
+      ["P-Cannon", {"angle":0}],
+      ["P-Cannon", {"angle":["degrees",30]}]
+    ],
+    "delay-ms": 124
+  },"QPC":{
+    "emits":[
+      ["P-Cannon",{"angle":["degrees",-6]}],
+      ["P-Cannon",{"angle":["degrees",-12]}],
+      ["P-Cannon",{"angle":["degrees", 6]}],
+      ["P-Cannon",{"angle":["degrees",12]}],
+    ],
+    "delay-ms": 90
+  }
+}
