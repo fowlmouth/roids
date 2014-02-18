@@ -12,13 +12,22 @@
       ["P-Cannon", {"angle":["degrees",30]}]
     ],
     "delay-ms": 124
-  },"QPC":{
+  },"Quad-P-Cannon":{
+    "emits":[
+      ["P-Cannon",{"angle":["degrees",-3]}],
+      ["P-Cannon",{"angle":["degrees",-9]}],
+      ["P-Cannon",{"angle":["degrees", 3]}],
+      ["P-Cannon",{"angle":["degrees", 9]}],
+    ],
+    "delay-ms": 135
+  },"Mega-P-Cannon":{
     "emits":[
       ["P-Cannon",{"angle":["degrees",-6]}],
       ["P-Cannon",{"angle":["degrees",-12]}],
+      ["P-Cannon",{"angle":["degrees", 0]}],
       ["P-Cannon",{"angle":["degrees", 6]}],
       ["P-Cannon",{"angle":["degrees",12]}],
     ],
-    "delay-ms": 90
+    "delay-ms": 149
   }
 }

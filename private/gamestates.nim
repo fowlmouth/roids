@@ -45,10 +45,13 @@ type
   TEvtResponder = proc (evt: var TEvent; active: var bool): bool
   TControlSet* = object
     forward, backward, turnright, turnleft, fireemitter, spec: TEvtResponder
-    skillmenu: TEvtResponder
+    skillmenu, fireEmitter1: TEvtResponder
 
-proc getResponder (j: PJsonNode): TEvtResponder =
+proc getResponder (j: PJsonNode; key: string): TEvtResponder =
   result = proc(evt: var TEvent; active: var bool):bool = false
+  
+  if not j.hasKey(key): return
+  let j = j[key]
 
   template handleEVT (body:stmt):stmt {.immediate.}= 
     result = proc(evt: var TEvent; active: var bool): bool =
@@ -81,7 +84,7 @@ proc loadPlayer* (f: string): PPlayerData =
   let controls = j["control-schemes"][j["controls"].str]
   template sc (c): stmt =
     # result.controller.forward = getResponder(controls["forward"])
-    result.controller.c = getResponder(controls[astToStr(c)])
+    result.controller.c = getResponder(controls, astToStr(c))
   sc forward
   sc backward
   sc turnright
@@ -89,6 +92,8 @@ proc loadPlayer* (f: string): PPlayerData =
   sc fireemitter 
   sc spec
   sc skillmenu
+  
+  sc fireemitter1
 
 
 proc `()` (key: string; n: PJsonNode): PJsonNode {.delegator.}= n[key]
@@ -374,6 +379,7 @@ proc checkInput* (c: TControlSet; ic: ptr InputController; evt: var TEvent): boo
   chkInput(turnright)
   chkInput(turnleft)
   chkInput(fireemitter)
+  chkInput(fireEmitter1)
 
 proc playerInputController(gs: PRoomGS): ptr InputController =
   if gs.player.isSpec: gs.player.input.addr

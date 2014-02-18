@@ -429,13 +429,16 @@ proc canFire (x: PEntity; e: PEmitterType; room: PRoom): bool =
   if e.logic.has:
     result = evalBool(e.logic.val, room)
 
-proc canFire* (x: PEntity; emitter: var Emitter; room: PRoom): bool =
+proc canFire* (emitter: Emitter): bool{.inline.} =
+  emitter.cooldown <= 0
+proc canFire* (x: PEntity; emitter: var Emitter; room: PRoom): bool {.inline.}=
   if not x.canFire(emitter.e, room):
     return
-  return emitter.cooldown <= 0
+  return emitter.canFire
 
-proc createEntity (R: PRoom; X: PEntity; ET: PEmitterType) =
-
+proc fireET (R: PRoom; parent: int; ET: PEmitterType) =
+  template x: expr = r.getEnt(parent)
+  
   case et.kind.k
   of emitterKind.single:
     var ent = gameData.newEnt(r, et.emitsJson)
@@ -450,26 +453,55 @@ proc createEntity (R: PRoom; X: PEntity; ET: PEmitterType) =
     r.add_ent ent
   of emitterkind.multi:
     for et in et.kind.multi:
-      createEntity r, x, et
+      fireET r, parent, et
 
 proc fireEmitter (e: PEntity) =
-  if e[emitter].cooldown <= 0:
+  if e[emitter].canFire: 
     e.scheduleRC do(x: PEntity; r: PRoom):
       # schedule an entity to be created
       if not x.canFire(x[emitter], r):
         return
       
-      r.createEntity x, x[emitter].e
-      x[emitter].cooldown = x[emitter].e.delay
+      let id = x.id
+      
+      fireET r, x.id, x[emitter].e
+      # creating new entities might cause reallocations
+      r.getEnt(id)[emitter].cooldown = r.getEnt(id)[emitter].e.delay
+
+proc fireEmitterSlot(entity: PEntity; slot: int) =
+  if entity[emitters].ems[slot].canFire:
+    let slot = slot
+    
+    entity.scheduleRC do (X: PEntity; R: PRoom):
+      let id = x.id
+      template this_em : expr = r.getEnt(id)[emitters].ems[slot]
+      if not x.canFire(this_em, r):
+        return
+      fireET r, id, this_em.e
+      this_em.cooldown = this_em.e.delay
+
 
 msgImpl(Emitter,update) do (dt: float):
   let e = entity[emitter].addr
   e.cooldown -= dt
   if e.mode == emitterMode.auto:
     entity.fireEmitter
+msgImpl(Emitters,update) do (dt: float):
+  template ezpz: expr = entity[emitters].ems
+  for i in 0 .. < entity[emitters].ems.len:
+    template this_em : expr = entity[emitters].ems[i]
+    this_em.cooldown -= dt
+    if this_em.mode == emitterMode.auto:
+      entity.fireEmitterSlot i
 
-msgImpl(Emitter,fire) do:
-  entity.fireEmitter
+
+msgImpl(Emitter,fire, 100) do (slot: int):
+  if entity[emitter].canFire:
+    entity.fireEmitter 
+
+msgImpl(Emitters, fire, 101) do (slot: int):
+  if slot in 0 .. < entity[emitters].ems.len:
+    entity.fireEmitterSlot slot
 
 msgImpl(CollisionHandler, unserialize) do (J: PJsonNode; R: PRoom):
   if j.hasKey("CollisionHandler") and j["CollisionHandler"].kind == jObject:

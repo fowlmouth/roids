@@ -203,7 +203,7 @@ proc thrustFwd* {.unicast.}
 proc thrustBckwd* {.unicast.}
 proc turnRight* {.multicast.}
 proc turnLeft* {.multicast.}
-proc fire* {.unicast.}
+proc fire* (slot = 0) {.unicast.}
 
 const thrust = 50.0
 const turnspeed = 40.0
@@ -224,9 +224,11 @@ msgImpl(Body,turnRight)do:
 
 type InputController* = object
   forward*, backward*, turnLeft*, turnRight*: bool
-  fireEmitter*: bool
+  fireEmitter*, fireEmitter1*: bool
   spec*,skillmenu*:bool
+  
   aimTowards*: TMaybe[TPoint2d]
+  selectedEmitter*: int
 
 msgImpl(InputController, update) do (dt: float) :
   let ic = entity[InputController].addr
@@ -239,7 +241,9 @@ msgImpl(InputController, update) do (dt: float) :
   elif ic.turnRight:
     entity.turnRight
   if ic.fireEmitter:
-    entity.fire
+    entity.fire 0
+  if ic.fireEmitter1:
+    entity.fire 1
 
 type
   GravitySensor* = object
@@ -494,20 +498,35 @@ type
   EmitterMode* {.pure.}=enum
     manual, auto
 
+proc unserialize (e: var Emitter; j: PjsonNode; R: PRoom) =
+  if j.kind == jObject:
+    e.e = emitterTy("anonymous emitter", j)
+    
+    if j.hasKey"mode":
+      if j["mode"].str == "manual":
+        e.mode = EmitterMode.manual
+      else:
+        e.mode = EmitterMode.auto
+  elif j.kind == jString:
+    e.e = r.gameData.emitters[j.str]
+
+
 msgImpl(Emitter,unserialize) do (J: PJsonNode; R:PRoom):
   withKey(j, "Emitter", j):
-    if j.kind == jObject:
-      entity[Emitter].e = emitterTy("anonymous emitter", j)
-      
-      if j.hasKey"mode":
-        if j["mode"].str == "manual":
-          entity[Emitter].mode = EmitterMode.manual
-        else:
-          entity[Emitter].mode = EmitterMode.auto
-    elif j.kind == jString:
-      entity[emitter].e = r.gameData.emitters[j.str]
+    entity[emitter].unserialize j, r
+    
 
 # Emitter#update and #fire is in room.nim
+
+type
+  Emitters* = object
+    ems*: seq[Emitter]
+
+msgImpl(Emitters, unserialize) do (J: PJsonNode; R: PRoom):
+  withKey(j, "Emitters", j):
+    entity[emitters].ems.newSeq j.len
+    for i in 0 .. < len(j):
+      entity[emitters].ems[i].unserialize j[i], r
 
 type
   Position* = object
