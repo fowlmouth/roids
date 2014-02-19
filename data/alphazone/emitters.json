@@ -44,5 +44,13 @@
     "muzzle-velocity":190,
     "angle":0,
     "fire-sound":"ebomb1.wav"
-  }
+  },
+  
+  "Repel":{
+    "emits":"repel",
+    "delay-ms":2500,
+    "inherit-velocity":0,
+    "muzzle-velocity":0,
+    "fire-sound":"repel.wav"
+  },
 }

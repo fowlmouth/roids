@@ -264,7 +264,8 @@ msgImpl(GravitySensor, unserialize) do (J: PJsonNode; R:PRoom):
 msgImpl(GravitySensor, addToSpace) do (S: PSpace):
   discard s.addShape( entity[Gravitysensor].shape)
   entity[gravitySensor].shape.setUserdata cast[pointer](entity.id)
-  
+msgImpl(GravitySensor, removeFromSpace) do (S: PSpace):
+  s.removeShape(entity[gravitySensor].shape)
 
 
 

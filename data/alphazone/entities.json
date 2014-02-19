@@ -54,9 +54,9 @@
   },
   
   "repel":{
-    "OneShotAnimation":{"file":"explosions/ShockWaveLarge_156x156.png","delay":0.1},
+    "OneShotAnimation":{"file":"explosions/ShockwaveLarge_156x156.png","delay":0.1},
     "Body":{"mass":100.0, "shape":"circle","radius":0.1},
-    "GravitySensor":{"force":-500000,"radius":512}
+    "GravitySensor":{"force":-500,"radius":512}
   
   },"wormhole":{
   
@@ -96,7 +96,7 @@
       "fwspeed": 45,
       "rvspeed": -1,
     },
-    "Emitters": ["P-Cannon", "Bomb"],
+    "Emitters": ["P-Cannon", "Repel"],
     "AngularDampners": 0.94,
     "VelocityLimit": 350.0,
     "Health": 70,
