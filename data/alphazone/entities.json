@@ -26,56 +26,13 @@
   },"ast8":{
     "AnimatedSprite": { "file": "asteroids/Rock64c_64x64.png" , "delay": 0.1 },
     "Body": { "mass": 2.2, "shape": "circle", "radius": 26,"elasticity":0.3 }
-    
-  },
-  "p-bullet":{
-    "Lifetime": 2.8,
-    "AnimatedSprite": { "file": "bullets/EbulletA_12x12.png", "delay":0.1},
-    "Body": { "mass": 0.3, "shape": "circle", "radius": 3 },
-    "Damage": {},
-    "Explosion": "p-bullet.explosion",
-    "Trail":{"entity":"p-bullet.trail", "delay-ms": 120},
-  
-  },
-  "p-bullet.explosion":{
-    "OneShotAnimation":{"file":"bullets/EBulletHit_32x32.png","delay":0.1},
-    "Components":["Position"]
-  },
-  "p-bullet.trail":{
-    "OneShotAnimation":{"file":"bullets/bullettrail2_12x12.png","delay":0.1},
-    "Components":["Position"]
-  },
-  
-  "mass-driver":{
-    "RollSprite":{"file":"bullets/MassDriver_14x14.png"},
-    "Body":{"mass":0.3,"shape":"circle","radius":3},
-    "Lifetime":2.8
   },
   
   "upgrade":{
     "Body":{"mass":0.3,"shape":"circle","radius":3},
     "AnimatedSprite":{"file":"prize/SuperBombPrize_darkgreen_24x24.png","delay":0.1},
   },
-  
-  "bomb-whack":{
-    "AnimatedSprite":{"file":"bullets/Ebomb_20x20.png","delay":0.1},
-    "Body":{"mass":0.35,"shape":"circle","radius":6},
-    "Lifetime":2.8,
-    "TriggerRadius":12,
-  },
-  "bomb-graviton":{
-    "AnimatedSprite":{"file":"bullets/Ebomb_20x20.png","delay":0.1},
-    "Body":{"mass":0.8,"shape":"circle","radius":6},
-    "GravitySensor":{"radius":250,"force":800},
-    "ProximitySensor":{"radius":150}
-  },
-  
-  "repel":{
-    "OneShotAnimation":{"file":"explosions/ShockwaveLarge_156x156.png","delay":0.1},
-    "Body":{"mass":100.0, "shape":"circle","radius":0.1},
-    "GravitySensor":{"force":-500,"radius":512}
-  
-  },"wormhole":{
+  "wormhole":{
   
     "AnimatedSprite": { "file": "wormhole_192x192.png", "delay": 0.1 },
     "Body": { "mass": "infinity", "shape": "circle", "radius": 5,"elasticity":0.3 },
@@ -102,55 +59,6 @@
       "emits": ["group", "asteroids"],
       "delay-ms": 2000,
       "logic": ["<", ["entities-alive", ["group", "asteroids"]], 100]
-    }
-
-  },"hornet":{
-  
-    "RollSprite": { "file": "vehicles/terran/hornet_54x54.png" },
-    "Body": { "mass": 10.0, "shape": "circle", "radius": 18 },
-    "Components": ["InputController"],
-    "Actuators": 39300,
-    "Thrusters": {
-      "fwspeed": 45,
-      "rvspeed": -1,
-    },
-    "Emitters": ["P-Cannon", "Repel"],
-    "AngularDampners": 0.94,
-    "VelocityLimit": 350.0,
-    "Health": 70,
-    "Battery": {"capacity":1700,"regen-rate":650}
-
-  },
-  "infantry":{
-    "RollSprite":{"file":"vehicles/ManRun2_112x112.png"},
-    "Body":{"mass":11,"shape":"circle","radius":8.5},
-    "Components":["InputController"],
-    
-  },"a09":{
-  
-    "RollSprite": {"file": "vehicles/A09_54x54.png"},
-    "Body": {"mass": 10.0, "shape": "circle", "radius": 18},
-    "Components": ["InputController"],
-    "Actuators": 1380,
-    "Thrusters": {
-      "fwspeed": 45,
-      "rvspeed": -1,
-    },
-    "Emitters": ["P-Cannon"],
-    "AngularDampners":0.98,
-    "Health":55
-    
-  },"DefSat":{
-    "Sprite":{"file":"vehicles/turrets/DefSat_54x54.png"},
-    "Body":{"mass":50,"shape":"circle","radius":18},
-    "Components":["InputController"],
-    "Actuators": 15000,
-    "Emitter": {
-      "emits": ["P-Cannon"],
-      "delay-ms":210,
-      "muzzle-velocity":120.7,
-      "logic": ["<", ["entities-alive", "p-cannon"], 6],
-      "mode":"auto"
     }
 
   },"iron": {

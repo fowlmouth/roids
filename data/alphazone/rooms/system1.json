@@ -2,7 +2,7 @@
   "bounds": {
     "width": 4000, "height": 4000
   },"playable":[
-    "hornet","a09"
+    "vehicles.hornet","vehicles.a09"
   ],
   "start-camera":[2000,2000],
   "objects":[

@@ -1,12 +1,12 @@
 {
   "P-Cannon": {
-    "emits": "p-bullet",
+    "emits": "bullets.p-bullet",
     "delay-ms": 83,
     "inherit-velocity": 0.9,
     "muzzle-velocity": 220.666,
     "angle":0,
     "fire-sound":"gun3.wav",
-    "energy-cost":400,
+    "energy-cost":250,
   },
   "Tri-P-Cannon": {
     "emitters": [
@@ -38,19 +38,22 @@
   
   
   "Bomb":{
-    "emits":"bomb-whack",
+    "emits":"bullets.bomb-whack",
     "delay-ms":500,
     "inherit-velocity":0.8,
     "muzzle-velocity":190,
     "angle":0,
-    "fire-sound":"ebomb1.wav"
+    "fire-sound":"ebomb1.wav",
+    "energy-cost":375,
   },
   
   "Repel":{
-    "emits":"repel",
+    "emits":"bullets.repel",
     "delay-ms":250,
     "inherit-velocity":0,
     "muzzle-velocity":0,
     "fire-sound":"repel.wav"
   },
+  
+  
 }

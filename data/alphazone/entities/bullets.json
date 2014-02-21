@@ -1,0 +1,47 @@
+{
+  "p-bullet":{
+    "Lifetime": 2.8,
+    "AnimatedSprite": { "file": "bullets/EbulletA_12x12.png", "delay":0.1},
+    "Body": { "mass": 0.3, "shape": "circle", "radius": 3 },
+    "Damage": {},
+    "Explosion": "bullets.p-bullet.explosion",
+    "Trail":{"entity":"bullets.p-bullet.trail", "delay-ms": 70},
+  
+  },
+  "p-bullet.explosion":{
+    "OneShotAnimation":{"file":"bullets/EBulletHit_32x32.png","delay":0.1},
+    "Components":["Position"]
+  },
+  "p-bullet.trail":{
+    "OneShotAnimation":{"file":"bullets/bullettrail2_12x12.png","delay-ms":80},
+    "Components":["Position"]
+  },
+  
+  "mass-driver":{
+    "RollSprite":{"file":"bullets/MassDriver_14x14.png"},
+    "Body":{"mass":0.3,"shape":"circle","radius":3},
+    "Lifetime":2.8
+  },
+  
+  "bomb-whack":{
+    "AnimatedSprite":{"file":"bullets/Ebomb_20x20.png","delay":0.1},
+    "Body":{"mass":0.35,"shape":"circle","radius":6},
+    "Lifetime":2.8,
+    "TriggerRadius":12,
+  },
+  "bomb-graviton":{
+    "AnimatedSprite":{"file":"bullets/Ebomb_20x20.png","delay":0.1},
+    "Body":{"mass":0.8,"shape":"circle","radius":6},
+    "GravitySensor":{"radius":250,"force":800},
+    "ProximitySensor":{"radius":150}
+  },
+  
+  
+  
+  "repel":{
+    "OneShotAnimation":{"file":"explosions/ShockwaveLarge_156x156.png","delay":0.1},
+    "Body":{"mass":100.0, "shape":"circle","radius":0.1},
+    "GravitySensor":{"force":-500,"radius":512}
+  
+  },
+}

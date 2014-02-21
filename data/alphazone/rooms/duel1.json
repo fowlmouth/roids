@@ -3,7 +3,7 @@
     [20, 20], [1980, 20], [1980, 1980], [20, 1980]
   ],
   "playable": [
-    "hornet", "a09"
+    "vehicles.hornet", "vehicles.a09"
   ],
   "start-camera": [1000,1000],
   "objects": [

@@ -14,5 +14,27 @@
       "spec": ["key", "f12"],
       "skillmenu": ["key","f11"],
     }
-  }
+  },
+  
+  "fonts":{
+    "Liberation": {
+      "regular": "LiberationSans-Regular.ttf",
+      "mono": "LiberationMono-Regular.ttf"
+    }
+  },
+  "gui-font": {"size": 14, "font": ["Liberation", "mono"]},
+  
+  "irc-servers":{
+    "suroot":{
+      "address":"ircd.suroot.info",
+      "port":6667,
+      "channels":["#roids"]
+    },
+    "freenode":{
+      "address":"irc.freenode.org",
+      "port":6667,
+      "channels":["#roids"]
+    }
+  },
+  "irc":"freenode",
 }
