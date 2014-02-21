@@ -682,4 +682,45 @@ proc bb* (R: Radar; P: TPoint2d): TBB =
 
 type BannedEntity* = object
 
+type Battery* = object
+  capacity*, current*: float
+  start: TMaybe[float]
+  regenRate*: float
+
+msgImpl(Battery,unserialize)do(j:pjsonnode;r:proom):
+  withKey(j,"Battery",j):
+    
+    if j.hasKey("capacity"):
+      entity[battery].capacity = j["capacity"].toFloat
+    if j.HasKey("start"):
+      entity[battery].start = just(j["start"].toFloat)
+    if j.haskey("regen-rate"):
+      entity[battery].regenRate = j["regen-rate"].toFloat 
+
+msgimpl(battery,addtospace)do(s:pspace):
+  if entity[battery].start.has:
+    entity[battery].current = entity[battery].start.val
+  else:
+    entity[battery].current = entity[battery].capacity
+
+msgImpl(Battery,update)do(dt:float):
+  entity[battery].current = min(entity[battery].capacity, entity[battery].current + (entity[battery].regenRate * dt))
+
+proc secure_nrg (amt:float):bool {.unicast.}
+proc get_energy* : float {.unicast.}
+proc get_energy_pct* : float {.unicast.}
+
+proc secureEnergy* (E:PEntity; amt:TMaybe[float]):bool {.inline.} =
+  result = 
+    if not(amt.has) or amt.val == 0: true
+    else: e.secureNRG(amt.val)
+
+msgimpl(battery,secure_nrg)do(amt:float)->bool:
+  if entity[battery].current >= amt:  
+    entity[battery].current -= amt
+    result = true
+msgImpl(battery,getenergy)do->float:
+  return entity[battery].current
+msgImpl(battery,get_energy_pct)do->float:
+  result = entity.getEnergy / entity[battery].capacity
 

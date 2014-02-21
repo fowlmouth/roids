@@ -125,3 +125,9 @@ template withKey* (J: PJsonNode; key: string; varname: expr; body:stmt): stmt {.
     block:
       body
 
+proc debugP* [T] (some:T): T {.inline.} =
+  debugEcho($ some)
+  return some
+proc debugP* (some:float): float{.inline.}=
+  debugEcho(ff(some, 5))
+  return some

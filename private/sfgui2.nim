@@ -40,12 +40,13 @@ type
   PWidget* = ref object{.inheritable.}
     vtable*: ptr TWidgetVT
     sons*: seq[PWidget]
+    update_f*: proc(G: PWidget)
   
   TWidgetVT* = object
     draw*: proc(G: PWidget; W: PRenderWindow)
     setPos*: proc(G: PWidget; P: TPoint2d)
     getBB*: proc(G: PWidget): TFloatRect
-    onClick*: proc (g: PWidget; btn: TMouseButton; x, y: int): bool 
+    onClick*: proc (g: PWidget; btn: TMouseButton; x, y: int): bool
 
 proc `$` (r: TFloatRect): string = 
   "($1,$2,$3,$4)".format(
@@ -59,14 +60,19 @@ proc getBB*(g: PWidget): TFloatRect {.inline.}=
   result = g.vtable.getBB(g)
 proc onClick (g: PWidget; btn: TMouseButton; x, y: int): bool {.inline.}=
   result = g.vtable.onClick(g, btn, x,y)
+proc update* (g: PWidget) {.inline.}=
+  g.update_f(g)
 
 proc child*(g: PWidget): PWidget = g.sons[0]
+
+
 
 var
   defaultVT * = TWidgetVT()
 
 defaultVT.draw = proc(G: PWidget; W: PRenderWindow) =
-  for s in g.sons: draw(s, w)
+  if not(g.sons.isNil):
+    for s in g.sons: draw(s, w)
 defaultVT.setPos = proc(G: PWidget; P: TPoint2d) =
   discard
 defaultVT.getBB = proc(G: PWidget):TFloatRect = 
@@ -74,15 +80,20 @@ defaultVT.getBB = proc(G: PWidget):TFloatRect =
     result = g.sons[0].getBB
     for i in 1 .. g.sons.len - 1:
       result.expandToInclude g.sons[i].getBB
-
 defaultVT.onClick = proc (g: PWidget; btn: TMouseButton; x, y: int): bool =
   if not g.sons.isNil:
-    for s in g.sons:
-      if s.onClick(btn,x,y):
+    for id in countdown(high(g.sons), 0):
+      if g.sons[id].onClick(btn,x,y):
         return true
+proc default_update (G:PWidget) =
+  if not g.sons.isNil:
+    for widget in g.sons:
+      update(widget)
 
 proc init* (g: PWidget; sons = 0) =
-  g.sons.newSeq sons
+  g.update_f = default_update
+  if g.vtable.isNil: g.vtable = defaultVT.addr
+  if g.sons.isNil: g.sons.newSeq sons
 
 proc newWidget*: PWidget =
   result = PWidget(vtable: defaultVT.addr)
@@ -117,7 +128,7 @@ proc newCollection* : PWidget =
  """
 type
   WidgetText* = ref object of PWidget
-    text: PText
+    text*: PText
 
 var textWidgetVT = defaultVT
 textWidgetVT.getBB = proc(t: PWidget): TFloatRect =
@@ -133,6 +144,7 @@ textWidgetVT.onCLick = proc(t: PWidget;btn:TMouseButton; x,y: int): bool =
 proc textWidget* (str: string; font = defaultFont): WidgetText =
   new(result) do (obj: WidgetText):
     destroy obj.text
+  result.init
   result.text = newText(str,font,18)
   result.vtable=textWidgetVT.addr
 
@@ -180,6 +192,7 @@ hideableVT.onClick = proc(g:PWidget; btn:TMouseButton;x,y:int): bool =
 
 proc hideable*(w: PWidget; visible = true): WidgetHideable =
   result = WidgetHideable(visible:visible, sons: @[w], vtable: hideableVT.addr)
+  result.init
 
 
 type
@@ -199,11 +212,12 @@ clckVT.setPos = proc(G:PWidget; p:TPoint2d)=
   G.sons[0].setPos p
 
 proc onClick*(w: PWidget; f: proc()): WidgetClickable=
-  WidgetClickable(
+  result = WidgetClickable(
     cb: f,
     sons: @[w],
     vtable: clckVT.addr
   )
+  result.init
 proc button*(str:string; f:proc()): WidgetClickable =
   result = onClick(textWidget(str), f)
 

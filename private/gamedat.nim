@@ -4,6 +4,8 @@ import fowltek/entitty, tables, json,math, os,
   basic2d,
   fowltek/maybe_t
 
+when defined(debug): import logging
+
 var
   dom* = newDomain()
 
@@ -38,6 +40,7 @@ proc loadGameData* (dir: string): PGameData =
 
   template maybeAdd (seq; c): stmt =
     if(;let id = safeFindComponent(c); id != -1):
+      when defined(debug): echo "Component ", c
       seq.add id
 
   for r in walkFiles(thisDir/"rooms/*.json"):

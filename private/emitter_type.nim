@@ -12,6 +12,7 @@ type
     inheritVelocity*, muzzleVelocity*: float
     logic*: TMaybe[PJsonnode]
     fireSound*: TMaybe[PSoundCached]
+    energyCost*: TMaybe[float]
     kind*: TEmitterKind
     emits_json*: PJsonNode
 
@@ -32,7 +33,13 @@ proc unserialize (ET: PEmitterType; J: PJsonNode) =
   elif j.hasKey("delay"):
     et.delay.getFloat j,"delay", 0.250
 
-  withKey(j, "emits", j):  et.emitsJson = j
+  if j.hasKey("emits"):
+    et.emitsJson = j["emits"]
+    et.kind.k = emitterkind.single
+  elif j.hasKey("emitters"):
+    et.emitsJson = j["emitters"]
+    et.kind.k = emitterkind.multi
+  
   
   withKey(j, "initial-impulse", j):  et.initialImpulse = vector2d(j)
   if j.hasKey"inherit-velocity":
@@ -46,6 +53,9 @@ proc unserialize (ET: PEmitterType; J: PJsonNode) =
   
   withKey(j, "fire-sound", j):
     et.fireSound = maybe(loadSound(j))
+  
+  withKey(j, "energy-cost", j):
+    et.energyCost = just(j.toFloat)
 
 proc emitterTy* (name: string; J: PJsonNode): PEmitterType =
   result = PEmitterType(name: name)

@@ -2,7 +2,7 @@ import
   private/gsm, private/room,private/room_interface,
   private/components, private/gamedat, private/debug_draw,
   fowltek/maybe_t, fowltek/entitty, fowltek/boundingbox, fowltek/bbtree, 
-  private/sfgui2, private/common,
+  private/sfgui2, private/common, fowltek/pointer_arithm,
   json, csfml_colors,csfml, logging
 import basic2d except `$`
 import chipmunk as cp
@@ -27,6 +27,8 @@ type
     camera: PView
     
     radar_texture: PRenderTexture
+    
+    vehicleGui: PWidget # vehicle-specific gui (inventory list, radar)
   
   TPlayerMode = enum
     Spectator, Playing
@@ -234,11 +236,83 @@ proc updatePlayerRadar (gs: PRoomGS) =
   gs.radarTexture.setView nil.PView
   destroy view
 
+
+type PRectWidget* = ref object of PWidget
+  rect*: csfml.PRectangleShape
+var rectWidgetVT = sfgui2.defaultVT
+rectWidgetVT.draw = proc(G:PWidget; W:PRenderWIndow)=
+  w.draw g.PRectWidget.rect
+rectWidgetVT.setPos = proc(G:PWidget; P:tpoint2d)=
+  g.prectwidget.rect.setposition p.vec2f
+ 
+proc rectwidget (sz: TVector2d): PRectWidget =
+  result = PRectWidget(rect: newRectangleShape(sz.vec2f))
+  result.vtable = rectWidgetVT.addr
+  result.init
+
+proc batteryGaugeWidget (sz: TVector2d; gs: PRoomGS): PRectWidget =
+  result = rectWidget(sz)
+  result.rect.setFillColor green
+  result.update_f = proc( G: PWIDGET ) =
+    let g = G.PRectWidget
+    g.rect.setSize vec2f(sz.x * gs.playerVehicle.getEnergyPct , sz.y)
+    g.rect.setOrigin g.rect.getSize / 2
+
+proc emitterSlotWidget ( GS:PROOMGS; ESLOT:INT ): WidgetText =
+  result = textWidget("|||")
+  result.updateF = proc( G:PWIDGET ) = 
+    var text = gs.playerVehicle[emitters].ems[e_slot].e.name
+    var color = green 
+    if gs.playerVehicle[emitters].ems[e_slot].cooldown > 0:
+      text.add " "
+      text.add ff(gs.playerVehicle[emitters].ems[e_slot].cooldown, 4)
+      text.add 's'
+      color = red
+    g.WidgetText.text.setString text
+    g.WidgetText.text.setColor color
+    
+
+proc updateVehicleGUI (gs: PRoomGS) =
+  if not gs.VehicleGUI.isNIL:
+    gs.gui.remove gs.VehicleGUI
+  gs.VehicleGUI = newWidget()
+  gs.gui.add gs.vehicleGUI
+  
+  gs.updatePlayerRadar
+  
+  
+  # build player's emitters widget
+  let v_id = gs.playerVehicle.id
+  
+  if gs.playerVehicle.hasComponent(Emitters):
+    
+    var ew = newUL()
+    
+    for e_slot in 0 .. < len(gs.playerVehicle[emitters].ems):
+      ew.add emitterSlotWidget(gs, e_slot)
+    
+    ew.setPos point2d(0,0)
+    ew.setPos point2d(3, g.window.getSize.y / 2)
+    
+    gs.VehicleGUI.add ew
+  
+  if gs.playervehicle.hasComponent(Battery):
+
+    let 
+      size = vector2d( 500, 15 )
+      batteryGauge = batteryGaugeWidget(size, gs) 
+      midScreen = vector2d( g.window.getSize.x / 2, g.window.getSize.y.float - 15 - 10 )
+    batteryGauge.setPos midScreen.point2d
+    
+    gs.VehicleGUI.add batteryGauge
+
+
 proc buildPlayerlist (gs: PRoomGS)
 proc buildPlayerGUI (GS:PRoomGS) =
   gs.buildPlayerList
   if not gs.player.isSpec:
-    gs.updatePlayerRadar
+    gs.updateVehicleGUI
+
 
 
 proc requestUnspec ( gs: PRoomGS; vehicle: string) =
@@ -281,6 +355,10 @@ proc buildPlayerlist (gs: PRoomGS) =
   gs.playerListMenu = playerListMenu
   gs.gui.add gs.playerListMenu
 
+proc reload (gs: PRoomGS) =
+  gamedata = load_game_data(gamedata.dir)
+  g.replace newRoomGS(gs.room.name)
+
 proc initGui (gs: PRoomGS; r: PJsonNode) =
 
   let main_gui = newWidget()
@@ -311,6 +389,12 @@ proc initGui (gs: PRoomGS; r: PJsonNode) =
   pauseMenu.child.add(button("goto room") do:
     main_gui.add roomMenu
     pauseMenu.visible = false
+  )
+  pauseMenu.child.add(button("reload") do:
+    gs.reload
+  )
+  pauseMenu.child.add(button("quit") do:
+    g.pop
   )
   
   pauseMenu.setPos point2d(200,100)
@@ -397,24 +481,18 @@ method handleEvent* (gs: PRoomGS; evt: var TEvent) =
   if gs.player_dat.controller.checkInput(ic, evt):
     return
 
+  if evt.kind == evtKeyPressed and evt.key.code == key_escape:
+    gs.pause
+    return
+
   if gs.player.isSpec:
     case evt.kind
     of evtKeyPressed:
       case evt.key.code
       
-      of key_P,key_escape:
-        gs.pause
-      of key_R:
-        gamedata = load_game_data(gamedata.dir)
-        g.replace newRoomGS(gs.room.name)
       of key_D:
         gs.debugDrawEnabled = not gs.debugDrawEnabled
-      of key_F12:
-        discard """ var ent = gameData.newEnt("hornet")
-        ent.setPos point2d(100,100)
-        let id = gs.room.add_ent(ent)
-        gs.unspec(id) """
-        gs.requestUnspec("hornet")
+        
       else:
         nil
     
@@ -483,7 +561,8 @@ method update* (gs: PRoomGS; dt: float) =
 
   gs.room.update dt
 
-  #gs.gui.update dt
+  if not gs.player.isSpec:
+    gs.vehicleGui.update
 
 method draw * (w: PRenderWindow; gs: PRoomGS) =
   

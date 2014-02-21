@@ -448,6 +448,9 @@ import private/emitter_type
 proc canFire (x: PEntity; e: PEmitterType; room: PRoom): bool =
   if e.isNil: return false
   
+  if e.energyCost.has and e.energyCost.val > x.getEnergy:
+    return false
+  
   if e.logic.has:
     return evalBool(e.logic.val, room)
   
@@ -467,6 +470,9 @@ proc fireET (R: PRoom; parent: int; ET: PEmitterType) =
   case et.kind.k
   of emitterKind.single:
     var ent = gameData.newEnt(r, et.emitsJson)
+    if ent.data.isNil:
+      return
+      
     let 
       angle = x.getAngle + et.angle
     ent.setPos x.getPos 
@@ -487,11 +493,11 @@ proc fireEmitter (e: PEntity) =
   if e[emitter].canFire: 
     e.scheduleRC do(x: PEntity; r: PRoom):
       # schedule an entity to be created
-      if not x.canFire(x[emitter], r):
+      if not(x.canFire(x[emitter], r)) or not(x.secureEnergy(x[emitter].e.energyCost)):
         return
       
-      let id = x.id
       
+      let id = x.id
       fireET r, id, x[emitter].e
       # creating new entities might cause reallocations
       r.getEnt(id)[emitter].cooldown = r.getEnt(id)[emitter].e.delay
@@ -503,7 +509,7 @@ proc fireEmitterSlot(entity: PEntity; slot: int) =
     entity.scheduleRC do (X: PEntity; R: PRoom):
       let id = x.id
       template this_em : expr = r.getEnt(id)[emitters].ems[slot]
-      if not x.canFire(this_em, r):
+      if not x.canFire(this_em, r) or not(x.secureEnergy(this_em.e.energyCost)):
         return
       fireET r, id, this_em.e
       this_em.cooldown = this_em.e.delay
@@ -515,7 +521,6 @@ msgImpl(Emitter,update) do (dt: float):
   if e.mode == emitterMode.auto:
     entity.fireEmitter
 msgImpl(Emitters,update) do (dt: float):
-  template ezpz: expr = entity[emitters].ems
   for i in 0 .. < entity[emitters].ems.len:
     template this_em : expr = entity[emitters].ems[i]
     this_em.cooldown -= dt
