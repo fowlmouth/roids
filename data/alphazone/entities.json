@@ -46,11 +46,28 @@
     "Components":["Position"]
   },
   
+  "mass-driver":{
+    "RollSprite":{"file":"bullets/MassDriver_14x14.png"},
+    "Body":{"mass":0.3,"shape":"circle","radius":3},
+    "Lifetime":2.8
+  },
+  
+  "upgrade":{
+    "Body":{"mass":0.3,"shape":"circle","radius":3},
+    "AnimatedSprite":{"file":"prize/SuperBombPrize_darkgreen_24x24.png","delay":0.1},
+  },
+  
   "bomb-whack":{
     "AnimatedSprite":{"file":"bullets/Ebomb_20x20.png","delay":0.1},
     "Body":{"mass":0.35,"shape":"circle","radius":6},
     "Lifetime":2.8,
     "TriggerRadius":12,
+  },
+  "bomb-graviton":{
+    "AnimatedSprite":{"file":"bullets/Ebomb_20x20.png","delay":0.1},
+    "Body":{"mass":0.8,"shape":"circle","radius":6},
+    "GravitySensor":{"radius":250,"force":800},
+    "ProximitySensor":{"radius":150}
   },
   
   "repel":{
@@ -75,7 +92,8 @@
   },"blackhole":{
   
     "Body":{"mass":"infinity","shape":"circle","radius":1,"elasticity":0},
-    "GravitySensor": {"radius": 1600, "force": 100000}
+    "GravitySensor": {"radius": 1600, "force": 100000},
+    "CollisionHandler":{"action":"destroy"},
     
   },"asteroid creator":{
   
@@ -102,6 +120,12 @@
     "Health": 70,
     "Battery": {"capacity":1700,"regen-rate":650}
 
+  },
+  "infantry":{
+    "RollSprite":{"file":"vehicles/ManRun2_112x112.png"},
+    "Body":{"mass":11,"shape":"circle","radius":8.5},
+    "Components":["InputController"],
+    
   },"a09":{
   
     "RollSprite": {"file": "vehicles/A09_54x54.png"},
@@ -122,7 +146,7 @@
     "Components":["InputController"],
     "Actuators": 15000,
     "Emitter": {
-      "emits": ["p-cannon"],
+      "emits": ["P-Cannon"],
       "delay-ms":210,
       "muzzle-velocity":120.7,
       "logic": ["<", ["entities-alive", "p-cannon"], 6],
@@ -185,7 +209,7 @@
     "Body":{"mass":60,"shape":"circle","radius":38}
     
   },"Mold Spore":{
-    "AnimatedSprite":{"file":"mold/spaceMoldSpore_32x59.png","delay":300},
+    "AnimatedSprite":{"file":"mold/spaceMoldSpore_32x32.png","delay-ms":300},
     "Body":{"mass":60,"shape":"circle","radius":14},
     
   },"starfield1":{
