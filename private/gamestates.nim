@@ -1,8 +1,9 @@
 import 
   private/gsm, private/room,private/room_interface,
   private/components, private/gamedat, private/debug_draw,
-  fowltek/maybe_t, fowltek/entitty, fowltek/boundingbox, fowltek/bbtree, 
-  private/sfgui2, private/common, fowltek/pointer_arithm,
+  fowltek/maybe_t, fowltek/entitty, fowltek/boundingbox, fowltek/bbtree,
+  fowltek/pointer_arithm, 
+  private/sfgui2, private/common, private/color_gradient, 
   json, csfml_colors,csfml, logging
 import basic2d except `$`
 import chipmunk as cp
@@ -250,12 +251,24 @@ proc rectwidget (sz: TVector2d): PRectWidget =
   result.vtable = rectWidgetVT.addr
   result.init
 
+var batteryColors: seq[TColor]
+block:
+  var gradient = initColorScale()
+  gradient.insert 0.0, red
+  gradient.insert 1.0, yellow
+  gradient.insert 2.0, green
+  batteryColors = gradient.toSeq(20)
+
 proc batteryGaugeWidget (sz: TVector2d; gs: PRoomGS): PRectWidget =
   result = rectWidget(sz)
   result.rect.setFillColor green
   result.update_f = proc( G: PWIDGET ) =
     let g = G.PRectWidget
-    g.rect.setSize vec2f(sz.x * gs.playerVehicle.getEnergyPct , sz.y)
+    let 
+      nrg_pct = gs.playerVehicle.getEnergyPct
+      color_idx = int( nrg_pct * (len(batteryColors) - 1).float )
+    g.rect.setFillColor batteryColors[color_idx]
+    g.rect.setSize vec2f(sz.x * nrg_pct , sz.y)
     g.rect.setOrigin g.rect.getSize / 2
 
 proc emitterSlotWidget ( GS:PROOMGS; ESLOT:INT ): WidgetText =
