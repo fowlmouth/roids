@@ -63,9 +63,11 @@ proc add_ent* (r: PRoom; e: TEntity): int {.discardable.} =
   r.getEnt(result).addToRoom r
 
 proc destroy_ent (r: PRoom; id: int) =
+  if r.getEnt(id).id == -1: return
   debug "Destroying entity #$#: $#", id, r.getEnt(id).getName
   id.rem_from_systems(r)
   destroy r.getEnt(id)
+  r.getEnt(id).id = -1
   r.ent_id.release id
 
 proc run* (s: PDoomSys; r: PRoom)= 
@@ -378,7 +380,7 @@ proc draw_parallax (r: PRoom; w: PRenderWindow) {.inline.} =
   w.setView oldView
   destroy view
 proc draw* (r: PRoom; bb: boundingbox.TBB; w: PRenderWindow) {.inline.} =
-  r.renderSys.tree.update do (item: int) -> TBB: r.getEnt(item).getBB
+  #r.renderSys.tree.update do (item: int) -> TBB: r.getEnt(item).getBB
   
   r.draw_parallax w
   
@@ -396,9 +398,17 @@ proc draw* (r: PRoom; bb: boundingbox.TBB; w: PRenderWindow) {.inline.} =
     r.getEnt(ent).draw w
   z_ents.setLen 0
 
+proc postUpdate* (R:PROOM) =
+  for id in r.updatesys.active:
+    R.getEnt(id).postUpdate R
+    R.renderSys.tree.update id, R.getEnt(id).getBB
+    
 proc update* (r: PRoom; dt:float) =
   r.updateSys.run(r, dt)
   r.physSys.step(dt)
+  
+  postUpdate r
+  
   r.updateSys.execRCs r
   r.doomsys.run(r)
 

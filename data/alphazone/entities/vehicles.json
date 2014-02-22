@@ -37,7 +37,7 @@
     "Body":{"mass":50,"shape":"circle","radius":30},
     "Components":["InputController"],
     "AttachedVehicle":[
-      {"vehicle":"vehicles.Armakith.turret","delta":[0,10]}
+      {"vehicle":"vehicles.Armakith.turret","delta":[-8,0]}
     ],
     "Actuators":39000,
     "Thrusters":{
@@ -57,7 +57,8 @@
     "Components":["Position","Orientation"],
     "Emitters":[
       "P-Cannon"
-    ]
+    ],
+    "ZOrder":1,
   },
   "infantry":{
     "RollSprite":{"file":"vehicles/ManRun2_112x112.png"},

@@ -52,6 +52,7 @@ proc getBB* (entity:PEntity): TBB =
   entity.calculateBB result
 
 proc update* (dt: float) {.multicast.}
+proc postUpdate* (R:PRoom){.multicast.}
 proc draw* (R: PRenderWindow) {.unicast.}
 
 proc unserialize* (j: PJsonNode; R:PRoom) {.multicast.}
@@ -785,7 +786,7 @@ msgImpl(AttachedVehicle,unserialize) do (J:PJSONNODE;R:PROOM):
       withkey(item,"delta",d):
         ap.delta = d.vector2d
       entity[attachedVehicle].attachments.add ap
-msgImpl(AttachedVehicle,draw) DO (W:PRenderWindow):
+msgImpl(AttachedVehicle,postUpdate) do (R:PROOM) : 
   let ent_pos = entity.getPos
   let ent_angle=entity.getAngle
   for i in 0 .. < entity[attachedvehicle].attachments.len:
@@ -794,7 +795,5 @@ msgImpl(AttachedVehicle,draw) DO (W:PRenderWindow):
     var delta = attach.delta
     delta.rotate ent_angle
     veh.setPos ent_pos + delta
-    veh.draw w
-    
 
 

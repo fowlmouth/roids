@@ -137,7 +137,6 @@ proc takeFocus* (W:PWIDGET) =
   if w.master.hasFocus.has: w.master.hasFocus.val.onFocus(false)
   w.master.hasFocus = just(w)
   w.onFocus true
-  echo "Focus taken"
 
 proc newWidget*: PWidget =
   result = PWidget(vtable: defaultVT.addr)
@@ -232,7 +231,9 @@ hideableVT.getBB = proc (g: PWidget): TFloatRect=
 hideableVT.onClick = proc(g:PWidget; btn:TMouseButton;x,y:int): bool =
   if g.WidgetHideable.visible:
     result = defaultVT.onClick(g, btn,x,y)
-
+hideableVT.onTextEntered = proc(G:PWIDGET; UNICODE:CINT):BOOL =
+  if g.widgethideable.visible:
+    result = defaultVT.onTextEntered(g,unicode)
 
 proc hideable*(w: PWidget; visible = true): WidgetHideable =
   result = WidgetHideable(visible:visible, sons: @[w], vtable: hideableVT.addr)
@@ -329,7 +330,7 @@ tfWidget.onClick = proc(G:PWIDGET; BTN:TMOUSEBUTTON;X,Y:INT): BOOL =
 
 proc textfield*(defaultText: string; 
         fontSettings = defaultFontSettings;
-        allowedCharacters = {'A'..'Z', 'a'..'z', '0'..'9', ' ', '.',',','?','@','!'}; 
+        allowedCharacters = {'\x20' .. '\x7E'}; 
         clearOnClick = true): PTextfieldWidget =
   new(result) do (X:PTextfieldWidget):
     #destroy x.sfText
