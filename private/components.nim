@@ -28,6 +28,9 @@ proc bb* (b: cp.TBB): boundingBox.TBB =
 proc addToSpace* (s: PSpace) {.multicast.}
 proc removeFromSpace*(s: PSpace){.multicast.}
 
+proc addToRoom* (R: PRoom) {.multicast.}
+proc removeFromRoom*(R:PRoom){.multicast.}
+
 proc impulse* (f: TVector2d) {.unicast.}
 
 proc setPos* (p: TPoint2d) {.unicast.}
@@ -748,6 +751,50 @@ msgImpl(Trail, unserialize) do (J:PJsonNode; R:PRoom):
       withKey(J, "entity", E): entity[trail].entity = E
 # Trail#update is in room.nim
 
+type RoomMember* = object
+  R*: PRoom
+
+msgImpl(RoomMember,addToRoom) do (R:PRoom):
+  entity[roomMember].r = r
+
+type
+  VehAttachPoint = tuple
+    ent: int
+    delta: TVector2d
+    veh: PJsonNode
+     
+  AttachedVehicle* = object
+    attachments*: seq[VehAttachPoint]
+
+AttachedVehicle.requiresComponent RoomMember
+AttachedVehicle.setInitializer do (X:PEntity):
+  X[AttachedVehicle].attachments.newSeq 0
+
+# AttachedVehicle#addToSpace is in room.nim
+msgImpl(AttachedVehicle,removeFromSpace)DO(R:PROOM):
+  # doom its sub-ents
+  for id in 0 .. high(entity[attachedVehicle].attachments):
+    r.doom entity[attachedvehicle].attachments[id].ent
+
+msgImpl(AttachedVehicle,unserialize) do (J:PJSONNODE;R:PROOM):
+  withkey(j,"AttachedVehicle",av):
+    for item in av:
+      var ap: VehAttachPoint
+      withkey(item,"vehicle",v):
+        ap.veh = v
+      withkey(item,"delta",d):
+        ap.delta = d.vector2d
+      entity[attachedVehicle].attachments.add ap
+msgImpl(AttachedVehicle,draw) DO (W:PRenderWindow):
+  let ent_pos = entity.getPos
+  let ent_angle=entity.getAngle
+  for i in 0 .. < entity[attachedvehicle].attachments.len:
+    template attach : expr = entity[attachedVehicle].attachments[i]
+    template veh : expr = entity[RoomMember].r.getEnt(attach.ent)
+    var delta = attach.delta
+    delta.rotate ent_angle
+    veh.setPos ent_pos + delta
+    veh.draw w
     
 
 

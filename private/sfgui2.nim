@@ -1,4 +1,6 @@
-import csfml,basic2d,os,strutils,math,csfml_colors,
+import 
+  basic2d,os,strutils,math,
+  csfml,csfml_colors,
   fowltek/maybe_t
 proc ff (f:float;prec=2):string = formatFloat(f,ffDecimal,prec)
 
@@ -42,17 +44,20 @@ type
     vtable*: ptr TWidgetVT
     sons*: seq[PWidget]
     update_f*: proc(G: PWidget)
+    hasFocus: TMaybe[PWidget]
+    master: PWidget
   
   TWidgetVT* = object
     draw*: proc(G: PWidget; W: PRenderWindow)
     setPos*: proc(G: PWidget; P: TPoint2d)
     getBB*: proc(G: PWidget): TFloatRect
     onClick*: proc (g: PWidget; btn: TMouseButton; x, y: int): bool
+    onFocus*: proc(G:PWIDGET; GAINED:BOOL)
     onTextEntered*: proc(G:PWidget; unicode:cint): bool
 
 proc `$` (r: TFloatRect): string = 
   "($1,$2,$3,$4)".format(
-    ff(r.left,1), ff(r.right,1), ff(r.width,1), ff(r.height,1))
+    ff(r.left,1), ff(r.top,1), ff(r.width,1), ff(r.height,1))
 
 proc draw* (g: PWidget; w: PRenderWindow){.inline.}=
   g.vtable.draw(g, w)
@@ -64,6 +69,8 @@ proc onClick (g: PWidget; btn: TMouseButton; x, y: int): bool {.inline.}=
   result = g.vtable.onClick(g, btn, x,y)
 proc onTextEntered (G:PWIDGET; UNICODE:CINT): BOOL {.inline.} = 
   result = g.vtable.onTextEntered(g, unicode)
+proc onFocus (G:PWIDGET; GAINED:BOOL) {.inline.}=
+  g.vtable.onFocus(g,gained)
 proc update* (g: PWidget) {.inline.}=
   g.update_f(g)
 
@@ -76,8 +83,12 @@ proc dispatch* (g: PWidget; evt: var TEvent): bool =
   of EvtMouseButtonPressed:
     #
     result = g.onClick( evt.mouseButton.button, evt.mouseButton.x, evt.mouseButton.y )
+    
   of EvtTextEntered:
-    result = g.onTextEntered(evt.text.unicode)
+    if g.hasFocus.has:
+      result = g.hasFocus.val.onTextEntered(evt.text.unicode)
+    else:
+      result = g.onTextEntered(evt.text.unicode)
   else:
     #
 
@@ -106,6 +117,8 @@ defaultVT.onTextEntered = proc(G:PWIDGET; UNICODE:CINT):BOOL =
     for id in countdown(high(g.sons), 0):
       if g.sons[id].onTextEntered(unicode):
         return true
+defaultVT.onFocus = proc(G:PWIDGET;GAINED:BOOL) =
+  discard
 
 proc default_update (G:PWidget) =
   if not g.sons.isNil:
@@ -117,13 +130,24 @@ proc init* (g: PWidget; sons = 0) =
   if g.vtable.isNil: g.vtable = defaultVT.addr
   if g.sons.isNil: g.sons.newSeq sons
 
+
+proc takeFocus* (W:PWIDGET) =
+  if w.master.isNil:
+    return
+  if w.master.hasFocus.has: w.master.hasFocus.val.onFocus(false)
+  w.master.hasFocus = just(w)
+  w.onFocus true
+  echo "Focus taken"
+
 proc newWidget*: PWidget =
   result = PWidget(vtable: defaultVT.addr)
   result.init
+  result.master = result
 
 
 proc add* (g: PWidget; w: PWidget)=
   g.sons.add(w)
+  w.master = g.master
 proc remove*(g: PWidget; w: PWidget)=
   let id = g.sons.find(w)
   if id != -1: g.sons.delete id
@@ -137,6 +161,10 @@ var defaultFontSettings*: TFontSettings
 defaultFontSettings.font = defaultFont
 defaultFontSettings.characterSize = 18
 defaultFontSettings.color = white
+proc newText* (settings: TFontSettings; str = ""): PText = 
+  result = newText(str, settings.font, settings.characterSize.cint)
+  result.setColor settings.color
+
 
 type
   WidgetText* = ref object of PWidget
@@ -157,7 +185,7 @@ proc textWidget* (str: string; font = defaultFontSettings): WidgetText =
   new(result) do (obj: WidgetText):
     destroy obj.text
   result.init
-  result.text = newText(str, font.font, font.characterSize.cint)
+  result.text = font.newText(str)
   result.vtable=textWidgetVT.addr
 
 type
@@ -244,8 +272,10 @@ proc button*(str:string; fontSettings: TFontSettings; f:proc()): WidgetClickable
 
 type PTextfieldWidget* = ref object of PWidget
   text*: string
+  originalText*: string
   cursor*: int
   clearOnClick: TMaybe[bool] # the inner val is whether it has been cleared
+  chars: set[char]
 
 
 proc updateSFtext (G:PTextfieldWidget) =
@@ -261,32 +291,46 @@ tfWidget.setPos = proc(G:PWIDGET; POS:TPOINT2D) =
   G.child.setPos pos
   
 tfWidget.onTextEntered = proc(G: PWidget; unicode: cint): bool =
-  if unicode.char == '\b' and G.PTextfieldWidget.cursor > 0:
-    # delet
-  else:
+  let g = g.ptextfieldwidget
+  if unicode == '\b'.ord:
+    if G.cursor > 0:
+      # delet
+      if g.cursor > g.text.len: g.cursor = g.text.len
+      let rem = g.text[g.cursor .. -1]
+      g.text.setLen g.cursor-1
+      g.text.add rem
+      g.updateSFtext
+      g.cursor = max(0, g.cursor-1)
+      result = true
+  elif unicode < 256 and unicode.char in g.chars:
     let c = unicode.char
     let g = g.ptextfieldwidget
     g.text.add c
     g.updatesftext
-    echo "Captured text: ", c, " (", c.ord,")"
+    inc g.cursor
     result = true
+
+tfWidget.onFocus = proc(G:PWIDGET; GAINED:BOOL) =
+  let G = G.PTEXTFIELDWIDGET
+  if not GAINED and g.text == "":
+    g.setText g.originalText
+  elif gained and g.clearOnClick.has and g.text == g.originalText:
+    g.setText ""
+
 
 tfWidget.getBB = proc(G:PWidget):TFloatRect =
   result = g.child.getBB
 tfWidget.onClick = proc(G:PWIDGET; BTN:TMOUSEBUTTON;X,Y:INT): BOOL =
-  if btn != mouseLeft: return
-  
-  let g = g.PTextfieldWidget
-  if (x,y) in g.getBB: 
-    if g.clearOnClick and not g.clearOnClick.val:
-      g.setText ""
-      g.clearOnClick.val = true
+  if (x,y) in g.getBB:
+    # take focus
+    g.takeFocus
+    result = true
 
-proc newText* (settings: TFontSettings): PText = 
-  result = newText("", settings.font, settings.characterSize.cint)
-  result.setColor settings.color
 
-proc textfield*(defaultText: string; fontSettings = defaultFontSettings; clearOnClick = true): PTextfieldWidget =
+proc textfield*(defaultText: string; 
+        fontSettings = defaultFontSettings;
+        allowedCharacters = {'A'..'Z', 'a'..'z', '0'..'9', ' ', '.',',','?','@','!'}; 
+        clearOnClick = true): PTextfieldWidget =
   new(result) do (X:PTextfieldWidget):
     #destroy x.sfText
   #result.sfText = fontSettings.newText
@@ -294,5 +338,8 @@ proc textfield*(defaultText: string; fontSettings = defaultFontSettings; clearOn
   result.sons = @[ textWidget(defaultText, fontSettings).PWidget ]
   result.init
   result.clearOnClick.has = clearOnClick
-  result.setText defaultText
+  result.text = defaultText
+  result.originalText = defaultText
+  result.chars = allowedCharacters
+  
 

@@ -755,6 +755,10 @@ proc lobbyState* : PGameState =
   let loginForm: WidgetHideable = hideable(false)
   let helpMenu: WidgetHideable = hideable(false)
   
+  res.gui.add ChooseZoneWidget
+  res.gui.add loginForm
+  res.gui.add helpMenu
+  
   template hide_all_right_cols: stmt =
     chooseZoneWidget.visible = false
     loginForm.visible = false
@@ -762,28 +766,30 @@ proc lobbyState* : PGameState =
   
   block:
     let czm = newUL()
-    czm.add textWidget("Choose zone.")
+    chooseZoneWidget.add czm
+    
+    czm.add textWidget("Choose zone:")
     for kind,dir in walkDir("data"):
       let D = dir.splitPath.tail
       czm.add(button(D) do:
         gameData = loadGameData(D)
         g.replace newRoomGS(gameData.firstRoom)
       )
-    chooseZoneWidget.add czm
   block:
     let L = newUL()
+    loginForm.add L
     
     block:
       var un = newHL(padding=6)
+      L.add un
       un.add textwidget("Username:")
       un.add textField("foo")
-      L.add un
       
     block:
       var pw = newHL(padding=6)
+      L.add pw
       pw.add textWidget("Password:")
       pw.add textField("foo")
-      L.add pw
     
     L.add(button("Login") do:
       let
@@ -792,21 +798,19 @@ proc lobbyState* : PGameState =
       
       echo "Login $1 : $2".format(username,passwd)
     )
-    loginForm.add L
   block:
     let H = newUL()
+    helpMenu.add H
+    
     H.add(button("Goto a website") do:
       openDefaultBrowser("http://github.com/fowlmouth/roids")
     )
-    helpMenu.add H
   
-  res.gui.add ChooseZoneWidget
-  res.gui.add loginForm
-  res.gui.add helpMenu
     
   # left column
   block:
     let opts_menu = newUL()
+    res.gui.add opts_menu
     opts_menu.add(button("Login") do:
       hide_all_right_cols
       loginForm.visible = true
@@ -820,7 +824,6 @@ proc lobbyState* : PGameState =
       helpMenu.visible = true
     )
     opts_menu.setPos point2d(rightMargin,topMargin)
-    res.gui.add opts_menu
     
     right_margin += opts_menu.getBB.width
   

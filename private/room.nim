@@ -60,6 +60,7 @@ proc add_ent* (r: PRoom; e: TEntity): int {.discardable.} =
   r.getEnt(result).id = result
   # add entity to updatesys, rendersys, physicssys etc
   add_to_systems result, r
+  r.getEnt(result).addToRoom r
 
 proc destroy_ent (r: PRoom; id: int) =
   debug "Destroying entity #$#: $#", id, r.getEnt(id).getName
@@ -578,3 +579,12 @@ msgImpl(Trail, update) do (dt: float) :
       r.getEnt(x_id)[trail].timer = r.getEnt(x_id)[trail].delay
 
 
+msgImpl(AttachedVehicle,addToRoom) do (R:PROOM):
+  let my_id = entity.id
+  var attachs = entity[attachedVehicle].attachments
+  for id in 0 .. high(attachs):
+    var ent = R.newEnt(attachs[id].veh)
+    dom.addComponents ent, Owned
+    ent[Owned].by = my_id
+    attachs[id].ent = R.addEnt(ent)
+  R.getEnt(my_id)[attachedVehicle].attachments = attachs
