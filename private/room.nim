@@ -9,6 +9,21 @@ import chipmunk as cp except TBB
 
 var gamedata*: PGameData
 
+
+proc newEnt* (R: PRoom; name: string): TEntity =
+  when defined(debug):
+    info "Instantiating entity $#", name
+  let tj = r.gameData.entities.mget(name).addr
+  result = tj.ty.newEntity
+  result.unserialize tj.j1, r
+  result.unserialize tj.j2, r
+
+proc newEnt* (R: PRoom; name: PJsonNode): TEntity =
+  if name.kind == jArray and name[0].kind == jString and name[0].str == "group":
+    return newEnt(r, R.gameData.random_from_group(name[1].str))
+  elif name.kind == jString:
+    return newEnt(r, name.str)
+
 proc add* (S:PRenderSystem; ent:int; r:PRoom)=
   if r.getEnt(ent).hasComponent(Parallax):
     S.parallaxEntities.add ent
@@ -205,7 +220,7 @@ proc initRoom (room: PRoom; j: PJsonNode) =
         entity_data = entity[1]
 
       var ent: TEntity
-      ent = gameData.newEnt(room, entity_type)
+      ent = room.newEnt(entity_type)
       dom.addComponents(ent, TeamMember)
       ent.unserialize entity[1], room
       
@@ -247,7 +262,7 @@ proc initRoom (room: PRoom; j: PJsonNode) =
     for i in 0 .. < count:
       var ent: TEntity
       try:
-        ent = gameData.newEnt(room,objTy)
+        ent = room.newEnt(objTy)
       except EInvalidKey:
         warn "Entity not found $#", objTy
         break
@@ -283,9 +298,9 @@ proc getPlayerTeam* (R: PRoom; player: int): TMaybe[PTeam] =
     result = R.getTeam(R.getEnt(player)[TeamMember].team)
 
 proc joinPlayer* (R: PRoom; name: string): int =
-  var ent = dom.newEntity(Named, Owned, TeamMember, Radar)
+  var ent = dom.newEntity(Named, Owned, TeamMember, Radar, Position)
   ent[Named].s = name
-  ent[Radar].r = 1200.0
+  ent[Radar].r = 512
   result = R.addEnt(ent)
   R.setPlayerTeam result, 0
   
@@ -314,7 +329,7 @@ proc requestUnspec* (R: PRoom; player: int; veh: string): TMaybe[int] =
     playerTeam = r.getPlayerTeam(player)
 
   # vehicle
-  var ent = gameData.newEnt(R,veh)
+  var ent = r.newEnt(veh)
   dom.addComponents ent, Owned
   ent[Owned].by = player
   let vehicle_id = R.addEnt(ent)
@@ -389,8 +404,8 @@ proc update* (r: PRoom; dt:float) =
 proc countAliveKind* (R:PRoom; kind:PJsonNode): int =
   proc contains (J:PJsonNode; str:string): bool =
     if j.kind == jArray and j[0].kind == jString and j[0].str == "group":
-      if gamedata.groups.hasKey(j[1].str):
-        result = str in gamedata.groups[j[1].str]
+      if R.gamedata.groups.hasKey(j[1].str):
+        result = str in R.gamedata.groups[j[1].str]
         return
     result = (j.kind == jString and j.str == str)
   
@@ -414,11 +429,21 @@ proc evalBool* (J:PJsonNode; R: PRoom): bool =
     of ">":
       result = j[1].evalFloat(R) > j[2].evalFloat(R)
     of "and":
-      result = j[1].evalBool(R)
-      if result: result = j[2].evalBool(R)
+      for i in 1 .. < len(j):
+        result = j[i].evalBool(R)
+        if not result: return
+        
+      discard """ result = j[1].evalBool(R)
+      if result: result = j[2].evalBool(R) """
+      
     of "or":
-      result = j[1].evalBool(R)
-      if not result: result = j[2].evalBool(R)
+      for i in 1 .. < len(j):
+        result = j[i].evalBool(R)
+        if result: return
+      
+      discard """ result = j[1].evalBool(R)
+      if not result: result = j[2].evalBool(R) """
+      
     of "not":
       result = not j[1].evalBool(R)
 
@@ -430,10 +455,14 @@ msgImpl(CollisionHandler, unserialize) do (J: PJsonNode; R: PRoom):
     case j["action"].str
     of "warp":
       let p = point2d(j["position"])
+      var warp_graphic = "warp-in"
+      withKey(j, "warp-graphic", wg): warp_graphic = wg.str
+      
       entity[collisionHandler].f = proc(self,other: PEntity) =
         other.setPos p
+        let wg = warp_graphic
         other.scheduleRC do (x: PEntity; r: PRoom):
-          var ent = gameData.newEnt(r, "warp-in")
+          var ent = r.newEnt(wg)
           ent.setPos x.getPos
           r.add_ent ent
     of "destroy":
@@ -469,7 +498,7 @@ proc fireET (R: PRoom; parent: int; ET: PEmitterType) =
   
   case et.kind.k
   of emitterKind.single:
-    var ent = gameData.newEnt(r, et.emitsJson)
+    var ent = r.newEnt(et.emitsJson)
     if ent.data.isNil:
       return
       
@@ -535,5 +564,17 @@ msgImpl(Emitter,fire, 100) do (slot: int):
 msgImpl(Emitters, fire, 101) do (slot: int):
   if slot in 0 .. < entity[emitters].ems.len:
     entity.fireEmitterSlot slot
+
+
+
+msgImpl(Trail, update) do (dt: float) :
+  entity[trail].timer -= dt
+  if entity[trail].timer <= 0:
+    entity.scheduleRC do (X: PEntity; R: PRoom):
+      let x_id = x.id
+      var ent = r.newEnt(x[trail].entity)
+      ent.setPos r.getEnt(x_id).getPos
+      r.addEnt(ent)
+      r.getEnt(x_id)[trail].timer = r.getEnt(x_id)[trail].delay
 
 

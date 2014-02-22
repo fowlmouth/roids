@@ -27,7 +27,7 @@ type
 
 
 
-proc unserialize (ET: PEmitterType; J: PJsonNode) =
+proc unserialize* (ET: PEmitterType; J: PJsonNode) =
   if j.hasKey("delay-ms"):
     et.delay = j["delay-ms"].num.int / 1000
   elif j.hasKey("delay"):
@@ -70,10 +70,9 @@ proc copy* (et: PEmitterType): PEmitterType =
     logic: ~logic)
 
 proc settle* (et: PEmitterType; db: TTable[string, PEmitterType]) =
-  case et.emitsJson.kind
-  of jArray:
-    et.kind = TEmitterKind()
-    et.kind.k = emitterKind.multi
+  case et.kind.k
+  of emitterKind.multi:
+    # json is a list of emitter types
     et.kind.multi = newSeq[PEmitterType](et.emitsJson.len)
     for i in 0 .. < et.emitsJson.len:
       let j = et.emitsJson[i]
@@ -85,12 +84,10 @@ proc settle* (et: PEmitterType; db: TTable[string, PEmitterType]) =
       if j.len == 2:
         et.kind.multi[i].unserialize j[1]
       
-      
-  of jString:
-    et.kind = TEmitterKind(
-      k: emitterKind.single,
-      single: et.emitsJson
-    )
+  of emitterKind.single:
+    
+    # nothing to do here
+    
   else:
     raise newException(EIO, "Unknown emitter kind: "& $et.emitsJson)
 

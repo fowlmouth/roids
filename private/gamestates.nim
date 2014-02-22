@@ -4,9 +4,15 @@ import
   fowltek/maybe_t, fowltek/entitty, fowltek/boundingbox, fowltek/bbtree,
   fowltek/pointer_arithm, 
   private/sfgui2, private/common, private/color_gradient, 
-  json, csfml_colors,csfml, logging
+  json, csfml_colors,csfml,csfml_audio, logging, os
 import basic2d except `$`
 import chipmunk as cp
+when defined(useIRC):
+  import irc
+  from sockets import TPort
+  type  TIRCServer = tuple[address:string,port:TPort,channels:seq[string]]
+  proc `$` (some: TIRCServer): string = "irc://$1:$2".format( some.address, some.port.int16 ) 
+
 
 # global game state manager
 var g*: PGod
@@ -28,8 +34,12 @@ type
     camera: PView
     
     radar_texture: PRenderTexture
+    radar_timer: PClock
     
     vehicleGui: PWidget # vehicle-specific gui (inventory list, radar)
+    
+    when defined(useIRC):
+      irc: PAsyncIRC
   
   TPlayerMode = enum
     Spectator, Playing
@@ -40,10 +50,13 @@ type
     of Spectator:
       watching: TMaybe[int]
       input: InputController
-
+  
   PPlayerData* = ref object
     name*: string
     controller: TControlSet
+    fontSettings: TFontSettings
+    when defined(useIRC):
+      irc: TIRCServer
 
   TEvtResponder = proc (evt: var TEvent; active: var bool): bool
   TControlSet* = object
@@ -79,10 +92,29 @@ proc getResponder (j: PJsonNode; key: string): TEvtResponder =
         active = evt.kind == evtMouseButtonPressed
 
 proc loadPlayer* (f: string): PPlayerData =
-  result = PPlayerData(name: "nameless sob")
+  new(result) do (P:PPlayerData):
+    if p.fontSettings.font != defaultFontSettings.font:
+      destroy p.fontSettings.font
+  
   let j = json.parseFile(f)
+  
   if j.hasKey"name":
     result.name = j["name"].str
+  else:
+    result.name = "nameless sob"
+  
+  # load font
+  result.fontSettings = sfgui2.defaultFontSettings
+  block:
+    var f_json = j["gui-font"]["font"]
+    var font = j["fonts"]
+    for i in 0 .. < len(f_json):
+      font = font[f_json[i].str]
+    
+    let f = newFont("assets/fonts" / font.str)
+    if not f.isNil: result.fontsettings.font = f
+    
+    result.fontSettings.characterSize = j["gui-font"]["size"].toInt
 
   let controls = j["control-schemes"][j["controls"].str]
   template sc (c): stmt =
@@ -97,6 +129,20 @@ proc loadPlayer* (f: string): PPlayerData =
   sc skillmenu
   
   sc fireemitter1
+  
+  when defined(useIRC):
+    if j.hasKey"irc-servers" and j.hasKey"irc":
+      let srv = j["irc-servers"][j["irc"].str]
+      result.irc.address = srv["address"].str
+      result.irc.port = TPort(srv["port"].toInt)
+      result.irc.channels = @[]
+      if j.hasKey"channel":
+        result.irc.channels.add j["channel"].str
+      if j.hasKey"channels":
+        for chan in j["channels"]:
+          result.irc.channels.add chan.str
+      if result.irc.channels.len == 0:
+        result.irc.channels.add "#roids" 
 
 
 proc `()` (key: string; n: PJsonNode): PJsonNode {.delegator.}= n[key]
@@ -108,14 +154,31 @@ proc resetCamera* (gs: PRoomGS)=
   let sz = g.window.getSize
   gs.camera.setSize vec2f( sz.x, sz.y )
 
+proc updateVehicleGUI (GS:PROOMGS)
+
 proc isSpec* (p: TPlayer): bool = p.mode == Spectator
 proc unspec (r: PRoomGS; vehicle: int) =
   reset r.player
   r.player.mode = Playing
   r.player.vehicle = vehicle
   r.resetCamera
+  r.updateVehicleGUI
+
+proc playerVehicle* (gs: PRoomGS): PEntity =
+  assert( not gs.player.isSpec )
+  return gs.room.getEnt(gs.player.vehicle)
+proc playerEntity* (gs: PRoomGS): PEntity =
+  return gs.room.getEnt(gs.player_id)
+
+proc playerPos* (gs: PRoomGS): TPoint2d =
+  # returns the player's vehicle position or the players position
+  if gs.player.isSpec: gs.playerEntity.getPos
+  else: gs.playerVehicle.getPos
+
 
 proc spec (r: PRoomGS) =
+  if not(r.player.isSpec): 
+    r.playerEntity.setPos r.playerVehicle.getPos
   reset r.player
   r.player.mode = Spectator
 
@@ -126,15 +189,19 @@ proc pause* (r: PRoomGS) =
 proc free* (r: PRoomGS) = 
   echo "free'd roomgs"
 
+
+
 proc initGui (gs: PRoomGS; r: PJsonNode)
 
 proc newRoomGS* (room: string; playerDat = loadPlayer("player.json")): PGameState =
-  echo "opening ", room
+  info "Opening room $#", room
   
   let r = gameData.rooms[room]
+  let room = newRoom(r)
+  
   var res: PRoomGS
   new res, free
-  res.room = newRoom(r)
+  res.room = room
   res.player_id = res.room.joinPlayer(playerDat.name)
   res.player_dat = playerDat
   res.spec
@@ -145,18 +212,42 @@ proc newRoomGS* (room: string; playerDat = loadPlayer("player.json")): PGameStat
 
   res.initGui r
   
+  when defined(useIRC):
+    res.irc = asyncIrc(
+      res.player_dat.irc.address, 
+      port = res.player_dat.irc.port, 
+      nick = res.playerEntity.getName,
+      user = "roids-client", 
+      joinChans = res.player_dat.irc.channels,
+      ircEvent = (proc (irc: PAsyncIRC; event: TIRCEvent) =
+        case event.typ
+        of evConnected: 
+          echo "Connected."
+        of evDisconnected: discard
+        of evMsg:
+          if event.cmd == mprivmsg:
+            echo "<$1> $2".format(
+              event.nick, 
+              event.params[event.params.high]
+            )
+          else:
+            warn "IRC $1 $2".format(event.cmd, event.raw)
+      )
+    )
+    info "Connecting to $#", res.playerDat.irc
+    res.irc.connect
+  
   return res
 
-proc playerVehicle* (gs: PRoomGS): PEntity =
-  assert( not gs.player.isSpec )
-  return gs.room.getEnt(gs.player.vehicle)
-proc playerEntity* (gs: PRoomGS): PEntity =
-  return gs.room.getEnt(gs.player_id)
 
 proc hasOneOfTheseComponents* (entity:PEntity; components: varargs[int,`componentID`]):bool =
   for c in components:
     if not entity.typeinfo.all_components[c].isNil:
       return true
+
+
+proc guiFontSettings (gs: PRoomGS): TFontSettings {.inline.} = gs.playerDat.fontSettings
+
 
 type RadarWidget = ref object of PWidget
   pos: TPoint2d
@@ -167,13 +258,15 @@ var radarWidgetVT = sfgui2.defaultVT
 radarWidgetVT.draw = proc(g:PWidget; w:PRenderWindow) =
   let g = g.radarWidget
   if g.room.radarTexture.isNil: 
+    warn "Gamestate has no radarTexture"
     return
   
   if g.sprite.isNil:
     g.sprite = newSprite()
     g.sprite.setTexture g.room.radarTexture.getTexture, true
-  
-  g.sprite.setPosition vec2f(g.pos)
+    g.sprite.setPosition vec2f(g.pos)
+    g.sprite.setScale vec2f(1/4,1/4)
+
   w.draw g.sprite
 
 radarWidgetVT.setPos = proc(G:PWidget; P:TPoint2d) =
@@ -207,34 +300,47 @@ proc color (iff: TIFF): csfml.TColor =
   of TIFF.Friend: green
   of TIFF.Foe: red
   of TIFF.Inert: white
+
 proc updatePlayerRadar (gs: PRoomGS) =
-  if not(gs.player.isSpec) or not gs.playerEntity.hasComponent(Radar):
+  if not gs.playerEntity.hasComponent(Radar):
     return
 
-  let r = gs.playerVehicle[Radar].r
+  let r = gs.playerEntity[Radar].r
   if gs.radarTexture.isNil:
     gs.radarTexture = newRenderTexture(r.cint, r.cint, false)
 
   if not(gs.radarTexture.setActive (true)):
     warn "Could not activate radar texture"
     return
-    
-  gs.radarTexture.clear white
+  
+  gs.radarTexture.clear black
+  
   let view = newView()
   view.setSize vec2f(r, r)
-  view.setCenter vec2f(gs.playerVehicle.getPos)
+  view.setCenter vec2f(gs.playerPos)
   gs.radarTexture.setView view
-  let bb = bb(r - (r/2), r - (r/2), r, r)
-  var pointVA{.global.} = newVertexArray(csfml.Points, 1)
+  let bb = bb(r.float - (r/2), r.float - (r/2), r.float, r.float)
+  block:
+    var borders{.global.}=newVertexArray(csfml.LinesStrip,1)
+    debugDraw gs.radarTexture, bb, borders
+    
+  #var pointVA{.global.} = newVertexArray(csfml.Points, 1)
+  var circ{.global.} = newCircleShape(1.0, 16)
   proc tree_q (entity:int) = 
     let status = iff(gs.room, gs.player_id, entity)
-    pointVA[0].position = vec2f(gs.room.getEnt(entity).getPos)
-    pointVA[1].color = status.color
-    gs.radarTexture.draw pointVA
+    let radius = gs.room.getEnt(entity).getRadius
+    if radius.has and radius.val > 6: circ.setRadius radius.val
+    else:          circ.setRadius 6.0
+    circ.setFillColor status.color
+    gs.radarTexture.draw circ
+    
+    #pointVA[0].position = vec2f(gs.room.getEnt(entity).getPos)
+    #pointVA[1].color = status.color
+    #gs.radarTexture.draw pointVA
+    
   gs.room.renderSys.tree.query(bb, tree_q)
   gs.radarTexture.display
   discard gs.radarTexture.setActive(false)
-  gs.radarTexture.setView nil.PView
   destroy view
 
 
@@ -272,7 +378,7 @@ proc batteryGaugeWidget (sz: TVector2d; gs: PRoomGS): PRectWidget =
     g.rect.setOrigin g.rect.getSize / 2
 
 proc emitterSlotWidget ( GS:PROOMGS; ESLOT:INT ): WidgetText =
-  result = textWidget("|||")
+  result = textWidget("|||", gs.guiFontSettings)
   result.updateF = proc( G:PWIDGET ) = 
     var text = gs.playerVehicle[emitters].ems[e_slot].e.name
     var color = green 
@@ -326,43 +432,61 @@ proc buildPlayerGUI (GS:PRoomGS) =
   if not gs.player.isSpec:
     gs.updateVehicleGUI
 
-
+proc playerTeam ( GS:PROOMGS ): TMaybe[PTeam] =
+  if gs.playerEntity.hasComponent(TeamMember):
+    result = gs.room.getTeam(gs.playerEntity[teamMember].team)
 
 proc requestUnspec ( gs: PRoomGS; vehicle: string) =
-  var(has, ent_id) = gs.room.requestUnspec(gs.player_id, vehicle)
-  if has:
-    gs.unspec(ent_id)
-    gs.buildPlayerGUI
-
+  try:
+    var(has, ent_id) = gs.room.requestUnspec(gs.player_id, vehicle)
+    if has:
+      gs.unspec(ent_id)
+  except EInvalidKey:
+    warn "Missing vehicle $#", vehicle
+    discard
 
 proc buildPlayerlist (gs: PRoomGS) =
   # team/player menu
-  
   if not gs.playerListMenu.isNil:
     gs.gui.remove gs.playerListMenu
   
-  let playerList = hideable(newUL(), true)
-  
-  for team in gs.room.teamSys.teams:
-    
-    if team.members.len > 0:
-      # has players
-      var section = newUL()
-      section.add(textWidget(team.name))
-      
-      for ent_id in team.members:
-        section.add(textWidget(gs.room.getEnt(ent_id).getName))
-      
-      playerList.child.add section
-
   let playerListMenu = newUL()
-  playerListMenu.add(button("Playerlist [Hide]") do:
-    playerListMenu.sons[1].WidgetHideable.visible.toggle
-  )
-  playerListMenu.add playerList
+  
+  block:
+    var titleBar = newHL(padding = 4)
+    titleBar.add textWidget("Playerlist", gs.guiFontSettings)
+    titleBar.add(button("[-]", gs.guiFontSettings) do: 
+      playerListMenu.sons[1].WidgetHideable.visible.toggle
+    )
+    playerListMenu.add titleBar
+    
+  block:
+    let 
+      playerList = hideable(newUL(), true)
+      playerTeam = gs.playerTeam
+    
+    for team in gs.room.teamSys.teams:
+      
+      var fs = gs.playerDat.fontSettings
+      if playerTeam and team.id == playerTeam.val.id:
+        fs.color = green
+      
+      if team.members.len > 0:
+        # has players
+        var section = newUL()
+        section.add(textWidget(team.name, fs))
+        
+        for ent_id in team.members:
+          section.add(textWidget(gs.room.getEnt(ent_id).getName, fs))
+        
+        playerList.child.add section
+    
+    playerListMenu.add playerList
+
+  
   
   playerListMenu.setPos point2d( 500,5 )
-  let pos = point2d(g.window.getSize.x.float - playerListMenu.getBB.width, 5)
+  let pos = point2d(g.window.getSize.x.float - playerListMenu.getBB.width - 4, 4)
   playerListMenu.setPos pos
   
   gs.playerListMenu = playerListMenu
@@ -371,42 +495,46 @@ proc buildPlayerlist (gs: PRoomGS) =
 proc reload (gs: PRoomGS) =
   gamedata = load_game_data(gamedata.dir)
   g.replace newRoomGS(gs.room.name)
-
+ 
 proc initGui (gs: PRoomGS; r: PJsonNode) =
 
   let main_gui = newWidget()
   
   #skill menu
   var skm = hideable( newUL(), false )
-  if r.hasKey"playable":
-    for p in r["playable"]:
+  block:
+    var hl = newHL(padding = 4)
+    hl.add(textWidget("Choose Vehicle", gs.guiFontSettings))
+    hl.add(button("[x]", gs.guiFontSettings) do: skm.visible = false)
+    skm.child.add hl
+  withKey(r, "playable", playable):
+    for p in playable:
       let name = p.str
-      let b = button(name) do:
+      let b = button(name, gs.guiFontSettings) do:
         gs.requestUnspec(name)
-        #gs.unspec(gs.room.addEnt(gameData.newEnt(p.str)))
         skm.visible = false
       skm.child.add b
   skm.setPos point2d(100,100)
   
   #choose room menu
   let roomMenu = newUL()
-  for name, data in gamedata.rooms:
+  for name, data in gs.room.gamedata.rooms:
     let n = name
-    let b = button(n) do:
+    let b = button(n, gs.guiFontSettings) do:
       echo "Switching to ", n
       g.replace(newRoomGS(n))
     roomMenu.add b
   
   #pause menu
   let pauseMenu = hideable(newUL(), false)
-  pauseMenu.child.add(button("goto room") do:
+  pauseMenu.child.add(button("goto room", gs.guiFontSettings) do:
     main_gui.add roomMenu
     pauseMenu.visible = false
   )
-  pauseMenu.child.add(button("reload") do:
+  pauseMenu.child.add(button("reload", gs.guiFontSettings) do:
     gs.reload
   )
-  pauseMenu.child.add(button("quit") do:
+  pauseMenu.child.add(button("quit", gs.guiFontSettings) do:
     g.pop
   )
   
@@ -422,6 +550,9 @@ proc initGui (gs: PRoomGS; r: PJsonNode) =
   gs.pauseMenu = pauseMenu
   
   gs.buildplayerlist
+  gs.updatePlayerRadar
+  
+  gs.radarTimer = newClock()
 
 
 proc removeRCM (gs: PRoomGS) =
@@ -433,14 +564,14 @@ proc makeRightClickMenu (gs: PRoomGS; ent_id: int) =
   template hideRCM: stmt = 
     gs.removeRCM
   
-  result.add onclick(textWidget(gs.room.getEnt(ent_id).getName)) do:
+  result.add onclick(textWidget(gs.room.getEnt(ent_id).getName, gs.guiFontSettings)) do:
     hideRCM
-  result.add button("destroy") do:
+  result.add button("destroy",gs.guiFontSettings) do:
     gs.room.doom(ent_id) #destroyEnt(ent_id)
     hideRCM
   
   if gs.player.mode == Spectator:
-    result.add button("spectate") do:
+    result.add button("spectate", gs.guiFontSettings) do:
       gs.player.watching = just(ent_id)
       hideRCM
   
@@ -541,7 +672,7 @@ method handleEvent* (gs: PRoomGS; evt: var TEvent) =
 
       of MouseLeft:
 
-        var ent = gameData.newEnt(gs.room, gameData.randomFromGroup("asteroids"))
+        var ent = newEnt(gs.room, gs.room.gameData.randomFromGroup("asteroids"))
         ent.setPos point2d(world_m.x.float, world_m.y.float)
         gs.room.addEnt ent
         
@@ -550,30 +681,34 @@ method handleEvent* (gs: PRoomGS; evt: var TEvent) =
     else: discard
 
 method update* (gs: PRoomGS; dt: float) =
+
   let ic = gs.playerInputController
   if gs.player.isSpec:
     if ic.skillmenu:
       gs.skillmenu.WidgetHideable.visible = true
-      
-    elif not gs.camera.isNil:
-      const cameraSpeed = 16
-      var offs: TVector2f
-      if ic.turnRight:
-        offs.x += cameraSpeed
-      elif ic.turnLeft:
-        offs.x -= cameraSpeed
-      if ic.forward:
-        offs.y -= cameraSpeed
-      elif ic.backward:
-        offs.y += cameraSpeed
-      gs.camera.move offs
+    
+    const cameraSpeed = 16
+    var offs: TVector2d
+    if ic.turnRight:
+      offs.x += cameraSpeed
+    elif ic.turnLeft:
+      offs.x -= cameraSpeed
+    if ic.forward:
+      offs.y -= cameraSpeed
+    elif ic.backward:
+      offs.y += cameraSpeed
+    gs.playerEntity.setPos gs.playerEntity.getPos + offs
 
   else:
     if ic.spec:
       gs.spec
 
   gs.room.update dt
+  let playerPos = gs.playerPos
+  csfmlAudio.listenerSetPosition vec3f(playerpos.x, 0, playerpos.y)
+  gs.camera.setCenter playerPos.vec2f
 
+  if gs.radarTimer.getElapsedTime.asSeconds > 1.0: gs.updatePlayerRadar
   if not gs.player.isSpec:
     gs.vehicleGui.update
 
@@ -602,3 +737,106 @@ method draw * (w: PRenderWindow; gs: PRoomGS) =
   w.setView w.getDefaultView
 
   gs.gui.draw w
+
+import browsers
+
+type PLobbyState = ref object of PGameState
+  gui: PWidget
+
+proc lobbyState* : PGameState =
+  let res = PLobbyState()
+  res.gui = newWidget()
+  
+  var right_margin = 4.0
+  var top_margin = 25.0
+  
+  # col 2
+  let chooseZoneWidget: WidgetHideable = hideable(false)
+  let loginForm: WidgetHideable = hideable(false)
+  let helpMenu: WidgetHideable = hideable(false)
+  
+  template hide_all_right_cols: stmt =
+    chooseZoneWidget.visible = false
+    loginForm.visible = false
+    helpMenu.visible = false
+  
+  block:
+    let czm = newUL()
+    czm.add textWidget("Choose zone.")
+    for kind,dir in walkDir("data"):
+      let D = dir.splitPath.tail
+      czm.add(button(D) do:
+        gameData = loadGameData(D)
+        g.replace newRoomGS(gameData.firstRoom)
+      )
+    chooseZoneWidget.add czm
+  block:
+    let L = newUL()
+    
+    block:
+      var un = newHL(padding=6)
+      un.add textwidget("Username:")
+      un.add textField("foo")
+      L.add un
+      
+    block:
+      var pw = newHL(padding=6)
+      pw.add textWidget("Password:")
+      pw.add textField("foo")
+      L.add pw
+    
+    L.add(button("Login") do:
+      let
+        username = L.sons[0].sons[1].PTextfieldWidget.text
+        passwd = L.sons[1].sons[1].PTextfieldWidget.text
+      
+      echo "Login $1 : $2".format(username,passwd)
+    )
+    loginForm.add L
+  block:
+    let H = newUL()
+    H.add(button("Goto a website") do:
+      openDefaultBrowser("http://github.com/fowlmouth/roids")
+    )
+    helpMenu.add H
+  
+  res.gui.add ChooseZoneWidget
+  res.gui.add loginForm
+  res.gui.add helpMenu
+    
+  # left column
+  block:
+    let opts_menu = newUL()
+    opts_menu.add(button("Login") do:
+      hide_all_right_cols
+      loginForm.visible = true
+    )
+    opts_menu.add(button("Play offline") do:
+      hide_all_right_cols
+      chooseZoneWidget.visible = true
+    )
+    opts_menu.add(button("Help") do:
+      hide_all_right_cols
+      helpMenu.visible = true
+    )
+    opts_menu.setPos point2d(rightMargin,topMargin)
+    res.gui.add opts_menu
+    
+    right_margin += opts_menu.getBB.width
+  
+  # col 2
+  let pos = point2d(right_margin + 4, top_margin)
+  chooseZoneWIdget.setPos pos
+  loginForm.setPos pos
+  helpMenu.setPos pos
+  
+  return res
+
+method handleEvent* (GS:PLOBBYSTATE; EVT:VAR TEVENT) =
+  if gs.gui.dispatch(evt): return
+
+method draw * (W: PRenderWindow; gs: PLobbyState) =
+  
+  gs.gui.draw w
+
+

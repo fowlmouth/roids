@@ -70,38 +70,36 @@ proc loadGameData* (dir: string): PGameData =
   for key in result.emitters.keys:
     result.emitters[key].settle result.emitters
 
-  for name, x in json.parseFile(thisDir/"entities.json").pairs:
-    var comps = defaultComponents
-    for key, blah in x.pairs:
-      comps.maybeAdd key
-    if x.hasKey("Components"):
-      for c in x["Components"]:
-        comps.maybeAdd c.str
+  proc importEntities (result: PGameData; file: string; namespace: string) =
+    let namespace = if namespace.isNIL: "" else: namespace & "."
+    
+    for name, x in json.parseFile(file).pairs:
+      var comps = defaultComponents
+      for key, blah in x.pairs:
+        comps.maybeAdd key
+      if x.hasKey("Components"):
+        for c in x["Components"]:
+          comps.maybeAdd c.str
 
-    var y: TJent
-    y.ty = dom.getTypeinfo(comps)
-    y.j1 = %{ "Named": %name }
-    y.j2 = x
-    result.entities[name] = y
+      let ent_name = namespace & name
+      
+      var y: TJent
+      y.ty = dom.getTypeinfo(comps)
+      y.j1 = %{ "Named": %ent_name }
+      y.j2 = x
+      result.entities[ent_name] = y
+  
+  if fileExists( thisDir / "entities.json" ):
+    importEntities result, thisDir/"entities.json", nil
+  if dirExists ( thisDir / "entities" ):
+    for file in walkFiles(thisDir / "entities/*.json"):
+      importEntities result, file, file.splitFile.name
+  
   for name, g in result.j["groups"].pairs:
     result.groups[name] = @[]
     for s in g:
       if result.entities.hasKey(s.str):
         result.groups.mget(name).add s.str
 
-proc new_ent* (d: PGameData; R: PRoom; name: string): TEntity =
-  when defined(debug):
-    info "instantiating entity " , name
-  let tj = d.entities.mget(name).addr
-  result = tj.ty.newEntity
-  result.unserialize tj.j1, r
-  result.unserialize tj.j2, r
-
-proc new_ent* (d: PGameData; R: PRoom; name: PJsonNode): TEntity =
-  if name.kind == jArray:
-    if name[0].kind == jString and name[0].str == "group":
-      return d.new_ent(r, d.random_from_group(name[1].str))
-  elif name.kind == jString:
-    return d.new_ent(r, name.str)
 
 

@@ -36,6 +36,7 @@ proc getAngle*: float {.unicast.}
 proc setVel* (v: TVector2d) {.unicast.}
 proc getVel* : TVector2d {.unicast.}
 proc getBody*: TMaybe[cp.PBody]{.unicast.}
+proc getRadius*: TMaybe[float] {.unicast.}
 proc getTurnspeed* : float {.unicast.}
 proc getFwSpeed* : float {.unicast.}
 proc getRvSpeed* : float {.unicast.}
@@ -115,6 +116,8 @@ msgImpl(Body, getAngle) do -> float:
   entity[body].b.getAngle.float
 msgImpl(Body, getMass) do -> float:
   entity[body].b.getMass.float
+msgImpl(Body, getRadius) do -> TMaybe[float]:
+  just(entity[body].s.getCircleRadius.float)
 msgImpl(Body, calculateBB, 1000) do (result: var TBB):
   result.expandToInclude(entity[body].s.getBB.bb)
 msgImpl(Body, getBody) do -> TMaybe[cp.PBody]:
@@ -501,20 +504,24 @@ type
 
 proc unserialize (e: var Emitter; j: PjsonNode; R: PRoom) =
   if j.kind == jObject:
-    e.e = emitterTy("anonymous emitter", j)
+    if e.e.isNil:
+      e.e = emitterTy("anonymous emitter", j)
+      e.e.settle r.gameData.emitters
+    
     
     if j.hasKey"mode":
       if j["mode"].str == "manual":
         e.mode = EmitterMode.manual
       else:
         e.mode = EmitterMode.auto
+  
   elif j.kind == jString:
     e.e = r.gameData.emitters[j.str]
 
 
 msgImpl(Emitter,unserialize) do (J: PJsonNode; R:PRoom):
   withKey(j, "Emitter", j):
-    entity[emitter].unserialize j, r
+    entity[emitter].unserialize  j, r
     
 
 # Emitter#update and #fire is in room.nim
@@ -668,15 +675,15 @@ msgIMpl(VelocityLimit, update) do (dt: float):
     entity.setVel v * 0.95
 
 type Radar* = object
-  r*: float # range
+  r*: int # radius
 
 Radar.setInitializer do (X: PEntity):
-  x[radar].r = 1000.0
+  x[radar].r = 1000
 proc bb* (R: Radar; P: TPoint2d): TBB =
   bb(
     p.x - (r.r / 2),
     p.y - (r.r / 2),
-    r.r, r.r
+    r.r.float, r.r.float
   )
 
 
@@ -723,4 +730,24 @@ msgImpl(battery,getenergy)do->float:
   return entity[battery].current
 msgImpl(battery,get_energy_pct)do->float:
   result = entity.getEnergy / entity[battery].capacity
+
+
+type Trail* = object
+  delay*,timer*: float
+  entity*: PJsonNode
+
+msgImpl(Trail, unserialize) do (J:PJsonNode; R:PRoom):
+  withKey(j, "Trail", j):
+    if j.kind in {jString,jArray}:
+      entity[trail].entity = j
+    elif j.kind == jObject:
+      withKey(J, "delay-ms", D): entity[trail].delay = d.toInt / 1000
+      withKey(J, "delay", D): entity[trail].delay = d.toFloat
+      entity[trail].timer = entity[trail].delay
+      
+      withKey(J, "entity", E): entity[trail].entity = E
+# Trail#update is in room.nim
+
+    
+
 

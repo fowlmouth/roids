@@ -41,6 +41,13 @@ proc setup (rect: PRectangleShape; bb: TBB) =
   rect.setPosition vec2f(bb.left, bb.top)
   rect.setSize vec2f(bb.width, bb.height)
 
+proc debugDraw* (W: PRenderWindow|PRenderTexture; 
+                 bb: TBB; 
+                 obj: PVertexArray|PRectangleShape ) =
+  mixin setup
+  setup obj, bb
+  w.draw obj
+
 proc debugDraw* (w: PRenderWindow; node: PBBNode[int]; drawobj: PVertexArray|PRectangleShape) =
   mixin setup
   drawObj.setup node.getBB
