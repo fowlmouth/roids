@@ -2,7 +2,7 @@
   "bounds": {
     "width": 4000, "height": 4000
   },"playable":[
-    "vehicles.hornet","vehicles.a09"
+    "vehicles.hornet","vehicles.a09","vehicles.Armakith",
   ],
   "start-camera":[2000,2000],
   "objects":[

@@ -6,7 +6,7 @@
     "muzzle-velocity": 220.666,
     "angle":0,
     "fire-sound":"gun3.wav",
-    "energy-cost":250,
+    "energy-cost":170,
   },
   "Tri-P-Cannon": {
     "emitters": [
@@ -36,6 +36,15 @@
     "delay-ms": 149
   },
   
+  "Mass Driver":{
+    "emits":"bullets.mass-driver",
+    "delay-ms":75,
+    "inherit-velocity":0.8,
+    "muzzle-velocity":250,
+    "angle":0,
+    "fire-sound":"gun5.wav",
+    "energy-cost":180,
+  },
   
   "Bomb":{
     "emits":"bullets.bomb-whack",
@@ -43,8 +52,13 @@
     "inherit-velocity":0.8,
     "muzzle-velocity":190,
     "angle":0,
-    "fire-sound":"ebomb1.wav",
+    "fire-sound":"bomb2.wav",
     "energy-cost":375,
+  },
+  "Graviton Bomb":{
+    "copy":"Bomb",
+    "emits":"bullets.bomb-graviton",
+    "energy-cost":410,
   },
   
   "Repel":{

@@ -8,23 +8,49 @@
       "fwspeed": 45,
       "rvspeed": -1,
     },
-    "Emitters": ["P-Cannon", "Repel"],
+    "Emitters": ["Mass Driver", "Bomb"],
     "AngularDampners": 0.94,
     "VelocityLimit": 350.0,
     "Health": 70,
     "Battery": {"capacity":1700,"regen-rate":650}
 
   },
+  "a09":{
+  
+    "RollSprite":{"file": "vehicles/A09_54x54.png"},
+    "Body": {"mass": 10.0, "shape": "circle", "radius": 18},
+    "Components": ["InputController"],
+    "Actuators": 38000,
+    "Thrusters": {
+      "fwspeed": 45,
+      "rvspeed": -1,
+    },
+    "Emitters": ["P-Cannon", "Graviton Bomb"],
+    "AngularDampners":0.98,
+    "VelocityLimit":325.0,
+    "Health":55,
+    "Battery":{"capacity":1700,"regen-rate":666}
+    
+  },
   "Armakith":{
     "RollSprite":{"file":"vehicles/multi/Armakith_68x68.png"},
-    "Body":{"mass":16,"shape":"circle","radius":30},
+    "Body":{"mass":50,"shape":"circle","radius":30},
     "Components":["InputController"],
     "AttachedVehicle":[
       {"vehicle":"vehicles.Armakith.turret","delta":[0,10]}
     ],
+    "Actuators":39000,
+    "Thrusters":{
+      "fwspeed":45,
+      "rvspeed":40
+    },
+    "AngularDampners":0.96,
+    "VelocityLimit":325,
+    "Health":110,
     "Emitters":[
-      "Tri-P-Cannon"
-    ]
+      "Tri-P-Cannon", "Graviton Bomb"
+    ],
+    "Battery":{"capacity":2300,"regen-rate":500}
   },
   "Armakith.turret":{
     "RollSprite":{"file":"vehicles/multi/ArmakithTurret_30x30.png"},
@@ -43,20 +69,6 @@
     "Body":{"mass":11,"shape":"circle","radius":8.5},
     "Components":["InputController"],
   
-  },"a09":{
-  
-    "RollSprite": {"file": "vehicles/A09_54x54.png"},
-    "Body": {"mass": 10.0, "shape": "circle", "radius": 18},
-    "Components": ["InputController"],
-    "Actuators": 1380,
-    "Thrusters": {
-      "fwspeed": 45,
-      "rvspeed": -1,
-    },
-    "Emitters": ["P-Cannon"],
-    "AngularDampners":0.98,
-    "Health":55
-    
   },"DefSat":{
     "Sprite":{"file":"vehicles/turrets/DefSat_54x54.png"},
     "Body":{"mass":50,"shape":"circle","radius":18},

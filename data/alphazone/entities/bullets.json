@@ -5,7 +5,7 @@
     "Body": { "mass": 0.3, "shape": "circle", "radius": 3 },
     "Damage": {},
     "Explosion": "bullets.p-bullet.explosion",
-    "Trail":{"entity":"bullets.p-bullet.trail", "delay-ms": 70},
+    "Trail":{"entity":"bullets.p-bullet.trail","delay-ms":110},
   
   },
   "p-bullet.explosion":{
