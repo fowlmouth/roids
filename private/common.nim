@@ -60,6 +60,14 @@ proc toFloat* (n: PJsonNode): float =
     of "degrees":
       # degToRad(x)
       result = degToRad(n[1].toFloat)
+    of "seconds":
+      result = n[1].toFloat
+    of "milliseconds","ms":
+      result = n[1].toFloat / 1000.0
+    of "minutes":
+      result = n[1].toFloat * 60.0
+    of "hours":
+      result = n[1].toFloat * 60.0 * 60.0
 
   else:
     echo "Not a float value: ", n
@@ -125,9 +133,9 @@ template withKey* (J: PJsonNode; key: string; varname: expr; body:stmt): stmt {.
     block:
       body
 
-proc debugP* [T] (some:T): T {.inline.} =
-  debugEcho($ some)
+proc debugP* [T] (some:T; prefix=""): T {.inline.} =
+  debugEcho(prefix, $ some)
   return some
-proc debugP* (some:float): float{.inline.}=
-  debugEcho(ff(some, 5))
+proc debugP* (some:float; prefix=""): float{.inline.}=
+  debugEcho(prefix, ff(some, 5))
   return some

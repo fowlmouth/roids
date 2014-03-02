@@ -1,7 +1,7 @@
 import 
   fowltek/maybe_t,
   private/common, private/soundbuffer,
-  json, basic2d, tables, logging
+  json, basic2d, tables
 
 
 type
@@ -78,7 +78,7 @@ proc settle* (et: PEmitterType; db: TTable[string, PEmitterType]) =
       let j = et.emitsJson[i]
       let ty = db[j[0].str]
       if ty.isnil:
-        warn "Did not find emitter type "& j[0].str
+        echo "Did not find emitter type "& j[0].str
         continue
       et.kind.multi[i] = ty.copy
       if j.len == 2:

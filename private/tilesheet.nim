@@ -47,3 +47,12 @@ proc tilesheet* (file: string): PTilesheet =
   result.rows = int(sz.y / result.rect.height)
   destroy img
   cache[file] = result
+
+proc setCol* (T:PTILESHEET; S:PSPRITE; C:INT) =
+  var r = s.getTextureRect
+  r.left = cint(c * t.rect.width)
+  s.setTextureRect r
+proc setRow* (T:PTILESHEET; S:PSPRITE; R:INT) =
+  var rect = s.getTextureRect
+  rect.top = cint(r * t.rect.height)
+  s.setTextureRect rect

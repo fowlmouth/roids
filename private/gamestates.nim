@@ -4,7 +4,7 @@ import
   fowltek/maybe_t, fowltek/entitty, fowltek/boundingbox, fowltek/bbtree,
   fowltek/pointer_arithm, 
   private/sfgui2, private/common, private/color_gradient, 
-  json, csfml_colors,csfml,csfml_audio, logging, os
+  json, csfml_colors,csfml,csfml_audio, os
 import basic2d except `$`
 import chipmunk as cp
 when defined(useIRC):
@@ -38,6 +38,8 @@ type
     
     vehicleGui: PWidget # vehicle-specific gui (inventory list, radar)
     
+    gamedata: PGameData
+    
     when defined(useIRC):
       irc: PAsyncIRC
   
@@ -55,26 +57,67 @@ type
     name*: string
     controller: TControlSet
     fontSettings: TFontSettings
+    j*: PJsonNode
+    
     when defined(useIRC):
       irc: TIRCServer
 
-  TEvtResponder = proc (evt: var TEvent; active: var bool): bool
+  TEvtResponder = proc(): bool# proc (evt: var TEvent; active: var bool): bool
   TControlSet* = object
     forward, backward, turnright, turnleft, fireemitter, spec: TEvtResponder
-    skillmenu, fireEmitter1: TEvtResponder
+    strafeLeft, strafeRight: TEvtResponder
+    skillmenu, fireEmitter1, fireEmitter2,fireEmitter3,fireEmitter4,fireEmitter5: TEvtResponder
 
-proc getResponder (j: PJsonNode; key: string): TEvtResponder =
-  result = proc(evt: var TEvent; active: var bool):bool = false
+let
+  controllerInput* = {
+    evtKeyPressed, evtKeyReleased, evtMouseButtonPressed, evtMouseButtonReleased
+  }
+
+proc getJfunc (J:PJsonNode): proc(): bool =
+  case j[0].str
+  of "key":
+    let k_name = j[1].str
+    let k = parseenum[csfml.tkeycode]("key"& K_name)
+    return proc():bool =
+      result = csfml.isKeyPressed(k)
+      
+  of "mouse-button":
+    let b_name = j[1].str
+    let b = parseEnum[csfml.TMouseButton]("button"& b_name)
+    return proc():bool =
+      result = csfml.mouseIsButtonPressed(b)
+      
+  of "and":
+    let 
+      f1 = getJfunc(j[1])
+      f2 = getjfunc(j[2])
+    return proc():bool = f1() and f2()
+
+  of "not":
+    let f1 = getJfunc(j[1])
+    return proc(): bool = not f1()
+    
+  else:
+    raise newException(EIO,"Unknown this type is for input. "&($j))
+
+discard """ proc getJfunc (J:PJsonNode): proc(evt:var TEvent; active: var bool): bool =
   
-  if not j.hasKey(key): return
-  let j = j[key]
-
   template handleEVT (body:stmt):stmt {.immediate.}= 
     result = proc(evt: var TEvent; active: var bool): bool =
       body
+      when defined(Debug):
+        echo "handle_evt result: ", result, " active: ", active
     return
 
   case j[0].str
+  of "and":
+    let f1 = getJfunc(j[1])
+    let f2 = getJfunc2(j[2]) # use special sfml code for these they use iskeypressed() instead of the event 
+    handleEvt:
+      result = f1(evt, active) and f2()
+      if result:
+        active = evt.kind in {evtKeyPressed,evtMouseButtonPressed}
+
   of "key":
     let k_name = j[1].str
     let k = parseEnum[csfml.TKeyCode]("key"& k_name)
@@ -89,7 +132,16 @@ proc getResponder (j: PJsonNode; key: string): TEvtResponder =
       if  evt.kind in {evtMouseButtonPressed,evtMousebuttonreleased} and 
           evt.mousebutton.button == b:
         result = true
-        active = evt.kind == evtMouseButtonPressed
+        active = evt.kind == evtMouseButtonPressed """
+
+proc getResponder (j: PJsonNode; key: string): proc():bool =
+  result = 
+    proc() : bool = 
+      #
+  
+  if not j.hasKey(key): return
+  let j = j[key]
+  result = getJfunc(j)
 
 proc loadPlayer* (f: string): PPlayerData =
   new(result) do (P:PPlayerData):
@@ -97,11 +149,13 @@ proc loadPlayer* (f: string): PPlayerData =
       destroy p.fontSettings.font
   
   let j = json.parseFile(f)
+  result.j = j
   
   if j.hasKey"name":
     result.name = j["name"].str
   else:
     result.name = "nameless sob"
+  
   
   # load font
   result.fontSettings = sfgui2.defaultFontSettings
@@ -124,11 +178,17 @@ proc loadPlayer* (f: string): PPlayerData =
   sc backward
   sc turnright
   sc turnleft
-  sc fireemitter 
+  sc strafeleft
+  sc straferight
   sc spec
   sc skillmenu
   
+  sc fireemitter 
   sc fireemitter1
+  sc fireemitter2
+  sc fireemitter3
+  sc fireemitter4
+  sc fireemitter5
   
   when defined(useIRC):
     if j.hasKey"irc-servers" and j.hasKey"irc":
@@ -193,11 +253,11 @@ proc free* (r: PRoomGS) =
 
 proc initGui (gs: PRoomGS; r: PJsonNode)
 
-proc newRoomGS* (room: string; playerDat = loadPlayer("player.json")): PGameState =
-  info "Opening room $#", room
+proc newRoomGS* (gd: PGameData; room: string; playerDat = loadPlayer("player.json")): PGameState =
+  echo "Opening room $#", room
   
-  let r = gameData.rooms[room]
-  let room = newRoom(r)
+  let r = gd.rooms[room]
+  let room = newRoom(gd, room)
   
   var res: PRoomGS
   new res, free
@@ -205,6 +265,7 @@ proc newRoomGS* (room: string; playerDat = loadPlayer("player.json")): PGameStat
   res.player_id = res.room.joinPlayer(playerDat.name)
   res.player_dat = playerDat
   res.spec
+  res.gameData = gd
   
   res.resetCamera
   if r.hasKey("start-camera"):
@@ -231,10 +292,10 @@ proc newRoomGS* (room: string; playerDat = loadPlayer("player.json")): PGameStat
               event.params[event.params.high]
             )
           else:
-            warn "IRC $1 $2".format(event.cmd, event.raw)
+            debugEcho "IRC $1 $2".format(event.cmd, event.raw)
       )
     )
-    info "Connecting to $#", res.playerDat.irc
+    echo "Connecting to $#", res.playerDat.irc
     res.irc.connect
   
   return res
@@ -258,7 +319,7 @@ var radarWidgetVT = sfgui2.defaultVT
 radarWidgetVT.draw = proc(g:PWidget; w:PRenderWindow) =
   let g = g.radarWidget
   if g.room.radarTexture.isNil: 
-    warn "Gamestate has no radarTexture"
+    debugEcho "Gamestate has no radarTexture"
     return
   
   if g.sprite.isNil:
@@ -310,7 +371,7 @@ proc updatePlayerRadar (gs: PRoomGS) =
     gs.radarTexture = newRenderTexture(r.cint, r.cint, false)
 
   if not(gs.radarTexture.setActive (true)):
-    warn "Could not activate radar texture"
+    debugEcho "Could not activate radar texture"
     return
   
   gs.radarTexture.clear black
@@ -442,7 +503,7 @@ proc requestUnspec ( gs: PRoomGS; vehicle: string) =
     if has:
       gs.unspec(ent_id)
   except EInvalidKey:
-    warn "Missing vehicle $#", vehicle
+    debugEcho "Missing vehicle $#".format( vehicle)
     discard
 
 proc buildPlayerlist (gs: PRoomGS) =
@@ -493,8 +554,7 @@ proc buildPlayerlist (gs: PRoomGS) =
   gs.gui.add gs.playerListMenu
 
 proc reload (gs: PRoomGS) =
-  gamedata = load_game_data(gamedata.dir)
-  g.replace newRoomGS(gs.room.name)
+  g.replace newRoomGS(load_game_data(gs.gamedata.dir), gs.room.name)
  
 proc initGui (gs: PRoomGS; r: PJsonNode) =
 
@@ -522,7 +582,7 @@ proc initGui (gs: PRoomGS; r: PJsonNode) =
     let n = name
     let b = button(n, gs.guiFontSettings) do:
       echo "Switching to ", n
-      g.replace(newRoomGS(n))
+      g.replace(newRoomGS(gs.gameData, n))
     roomMenu.add b
   
   #pause menu
@@ -558,6 +618,7 @@ proc initGui (gs: PRoomGS; r: PJsonNode) =
 proc removeRCM (gs: PRoomGS) =
   if not gs.rcm.isNil:
     gs.gui.remove gs.rcm
+    gs.rcm = nil
 
 proc makeRightClickMenu (gs: PRoomGS; ent_id: int) =
   let result = newUL()
@@ -568,6 +629,8 @@ proc makeRightClickMenu (gs: PRoomGS; ent_id: int) =
     hideRCM
   result.add button("destroy",gs.guiFontSettings) do:
     gs.room.doom(ent_id) #destroyEnt(ent_id)
+    if gs.player.watching.has and gs.player.watching.val == ent_id:
+      gs.player.watching = Nothing[int]()
     hideRCM
   
   if gs.player.mode == Spectator:
@@ -588,26 +651,33 @@ proc makeInfoWindow (gs: PRoomGS; ent: int) =
     rmIW
   )
 
-proc checkInput* (c: TControlSet; ic: ptr InputController; evt: var TEvent): bool =
+proc checkInput* (c: TControlSet; ic: ptr InputController) =
   template chkInput(x): stmt =
     when compiles(ic.x):
-      when compiles(c.x(evt,ic.x)):
-        if c.x(evt, ic.x): 
-          return true
+      when compiles(c.x()):
+        ic.x = c.x()
       else:
         static:
           echo "Warning: input ", astToStr(x), " is not covered in TControlSet"
     else:
       static:
         echo "Warning: input ", astToStr(x), " is not covered in InputController"
+  
+
   chkInput(spec)
   chkInput(skillmenu)
   chkInput(forward)
   chkInput(backward)
   chkInput(turnright)
   chkInput(turnleft)
+  chkInput(strafeLeft)
+  chkInput(strafeRight)
   chkInput(fireemitter)
   chkInput(fireEmitter1)
+  chkInput(fireEmitter2)
+  chkInput(fireEmitter3)
+  chkInput(fireEmitter4)
+  chkInput(fireEmitter5)
 
 proc playerInputController(gs: PRoomGS): ptr InputController =
   if gs.player.isSpec: gs.player.input.addr
@@ -615,15 +685,20 @@ proc playerInputController(gs: PRoomGS): ptr InputController =
 
 method handleEvent* (gs: PRoomGS; evt: var TEvent) =
   if gs.gui.dispatch(evt):
+    echo "Gui dispatched event."
     return
 
   if evt.kind == evtResized:
     gs.camera.setSize vec2f( evt.size.width, evt.size.height )
     return
-  # see if evt is handled by responders for controller
-  let ic = gs.playerInputController
-  if gs.player_dat.controller.checkInput(ic, evt):
+    
+  if evt.kind notin controllerInput:
     return
+
+  # see if evt is handled by responders for controller
+  #let ic = gs.playerInputController
+  #if gs.player_dat.controller.checkInput(ic, evt):
+  #  return
 
   if evt.kind == evtKeyPressed and evt.key.code == key_escape:
     gs.pause
@@ -683,6 +758,9 @@ method handleEvent* (gs: PRoomGS; evt: var TEvent) =
 method update* (gs: PRoomGS; dt: float) =
 
   let ic = gs.playerInputController
+  # update input controller
+  gs.player_dat.controller.checkInput(ic)
+  
   if gs.player.isSpec:
     if ic.skillmenu:
       gs.skillmenu.WidgetHideable.visible = true
@@ -743,7 +821,9 @@ import browsers
 type PLobbyState = ref object of PGameState
   gui: PWidget
 
-proc lobbyState* : PGameState =
+proc lobbyState* (playerData = loadplayerdata()) : PGameState =
+  template guif : expr = playerdata.fontSettings
+  
   let res = PLobbyState()
   res.gui = newWidget()
   
@@ -770,34 +850,46 @@ proc lobbyState* : PGameState =
     
     czm.add textWidget("Choose zone:")
     for kind,dir in walkDir("data"):
-      let D = dir.splitPath.tail
-      czm.add(button(D) do:
-        gameData = loadGameData(D)
-        g.replace newRoomGS(gameData.firstRoom)
+      let D = dir
+      czm.add(button(D.splitPath.tail, guif) do:
+        let gd = loadGameData(D)
+        g.replace newRoomGS(gd, gd.firstRoom) 
       )
-  block:
-    let L = newUL()
-    loginForm.add L
-    
-    block:
-      var un = newHL(padding=6)
-      L.add un
-      un.add textwidget("Username:")
-      un.add textField("foo")
+  
+  block:    
+    proc setupServer (index: string) =
+      if not loginForm.sons.len == 1:
+        loginForm.sons.del 0
       
-    block:
-      var pw = newHL(padding=6)
-      L.add pw
-      pw.add textWidget("Password:")
-      pw.add textField("foo")
-    
-    L.add(button("Login") do:
-      let
-        username = L.sons[0].sons[1].PTextfieldWidget.text
-        passwd = L.sons[1].sons[1].PTextfieldWidget.text
+      let L = newUL()
+      loginForm.add L
       
-      echo "Login $1 : $2".format(username,passwd)
-    )
+      block:
+        var un = newHL(padding=6)
+        L.add un
+        un.add textwidget("Username:", guiF)
+        un.add textField("foo", guiF)
+        
+      block:
+        var pw = newHL(padding=6)
+        L.add pw
+        pw.add textWidget("Password:", guiF)
+        pw.add textField("foo", guiF)
+      
+      L.add(button("Login",guiF) do:
+        let
+          username = L.sons[0].sons[1].PTextfieldWidget.text
+          passwd = L.sons[1].sons[1].PTextfieldWidget.text
+        
+        echo "Login $1 : $2".format(username,passwd)
+      )
+    
+    let H = newHL()
+    for key, val in playerData.j["servers"].pairs:
+       H.add(button(key, guiF) do:
+        setupServer(key)
+       )
+    
   block:
     let H = newUL()
     helpMenu.add H

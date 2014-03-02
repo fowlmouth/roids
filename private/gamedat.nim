@@ -4,8 +4,6 @@ import fowltek/entitty, tables, json,math, os,
   basic2d,
   fowltek/maybe_t
 
-when defined(debug): import logging
-
 var
   dom* = newDomain()
 
@@ -24,12 +22,11 @@ proc safeFindComponent* (n:string): int =
 let defaultComponents = components(RCC, Named)
 
 proc loadGameData* (dir: string): PGameData =
-  let thisDir = "data"/dir
-  if not dirExists(thisDir):
-    raise newException(EBase,"Missing directory "& thisDir)
+  if not dirExists(dir):
+    raise newException(EBase,"Missing directory "& dir)
   
   result = PGameData()
-  result.j = json.parseFile(ThisDir/"zone.json")
+  result.j = json.parseFile(dir/"zone.json")
   result.dir = dir
   result.entities = initTable[string,TJent](64)
   result.groups = initTable[string,seq[string]](64)
@@ -43,7 +40,7 @@ proc loadGameData* (dir: string): PGameData =
       when defined(debug): echo "Component ", c
       seq.add id
 
-  for r in walkFiles(thisDir/"rooms/*.json"):
+  for r in walkFiles(dir/"rooms/*.json"):
     let
       j = json.parseFile(r)
     var
@@ -64,7 +61,7 @@ proc loadGameData* (dir: string): PGameData =
       result.firstRoom = r
       break
 
-  for name, x in json.parseFile(thisdir/"emitters.json").pairs:
+  for name, x in json.parseFile(dir/"emitters.json").pairs:
     let em = emitterTy(name, x)
     result.emitters[em.name] = em
   for key in result.emitters.keys:
@@ -89,10 +86,10 @@ proc loadGameData* (dir: string): PGameData =
       y.j2 = x
       result.entities[ent_name] = y
   
-  if fileExists( thisDir / "entities.json" ):
-    importEntities result, thisDir/"entities.json", nil
-  if dirExists ( thisDir / "entities" ):
-    for file in walkFiles(thisDir / "entities/*.json"):
+  if fileExists( dir / "entities.json" ):
+    importEntities result, dir/"entities.json", nil
+  if dirExists ( dir / "entities" ):
+    for file in walkFiles(dir / "entities/*.json"):
       importEntities result, file, file.splitFile.name
   
   for name, g in result.j["groups"].pairs:

@@ -58,6 +58,7 @@ proc draw* (R: PRenderWindow) {.unicast.}
 proc unserialize* (j: PJsonNode; R:PRoom) {.multicast.}
 
 proc handleCollision* (other: PEntity) {.multicast.}
+proc onCollide* (other: PEntity; handled: var bool) {.multicast.}
 
 proc getName* (result: var string) {.unicast.}
 proc getName* (e: PEntity): string =
@@ -90,6 +91,10 @@ msgImpl(RCC,schedule_rc) do (f: TRCC_CB):
 
 proc execRCs* (ent: PEntity; r: PRoom) =
   if ent.hasComponent(RCC):
+    if ent[rcc].commands.isNIL:
+      echo "RCCS IS NIL WTF"
+      echo ent.getName
+      quit 1
     for c in ent[RCC].commands:
       c(ent, r)
     ent[RCC].clear
@@ -231,7 +236,7 @@ msgImpl(Body,turnRight)do:
 
 type InputController* = object
   forward*, backward*, turnLeft*, turnRight*: bool
-  fireEmitter*, fireEmitter1*: bool
+  fireEmitter*, fireEmitter1*, fireEmitter2*,fireEmitter3*,fireEmitter4*,fireEmitter5*,fireEmitter6*: bool
   spec*,skillmenu*:bool
   
   aimTowards*: TMaybe[TPoint2d]
@@ -251,30 +256,53 @@ msgImpl(InputController, update) do (dt: float) :
     entity.fire 0
   if ic.fireEmitter1:
     entity.fire 1
+  if ic.fireEmitter2: entity.fire 2
+  if ic.fireEmitter3: entity.fire 3
+  if ic.fireEmitter4: entity.fire 4
+  if ic.fireEmitter5: entity.fire 5
+  if ic.fireEmitter6: entity.fire 6
 
 type
   GravitySensor* = object
     shape: cp.PShape
     force*: float
+    radius*:float
 GravitySensor.requiresComponent Body
 
+GravitySensor.setDestructor do (X:PEntity):
+  if not x[gravitySensor].shape.isNil:
+    free x[gravitySensor].shape
+
 msgImpl(GravitySensor, unserialize) do (J: PJsonNode; R:PRoom):
-  if j.hasKey("GravitySensor"):
-    let j = j["GravitySensor"]
-    var radius: float
-    radius.getFloat j, "radius", 500.0
-    entity[gravitysensor].force.getFloat j, "force", 1000.0
-    entity[gravitysensor].shape = newCircleShape(entity[Body].b, radius, vectorZero)
-    entity[gravitysensor].shape.setSensor true
-    entity[gravitysensor].shape.setCollisionType(ct"gravity")
+  withKey( j,"GravitySensor",s ):
+    withKey( s,"radius",r ):
+      let r = r.toFloat
+      entity[gravitySensor].radius = r
+    withKey( s,"force",f ):
+      entity[gravitySensor].force = f.toFloat
 
 msgImpl(GravitySensor, addToSpace) do (S: PSpace):
-  discard s.addShape( entity[Gravitysensor].shape)
+  entity[gravitySensor].shape = s.addShape( newCircleShape ( entity[body].b, entity[gravitySensor].radius, vectorZero ) )
+  entity[gravitySensor].shape.setSensor true
+  entity[gravitySensor].shape.setCollisionType ct"gravity"
   entity[gravitySensor].shape.setUserdata cast[pointer](entity.id)
+
 msgImpl(GravitySensor, removeFromSpace) do (S: PSpace):
   s.removeShape(entity[gravitySensor].shape)
 
 
+
+proc on_expire {.multicast.}
+proc expire* (X:PEntity) =
+  x.on_expire
+  x.scheduleRC do (X:PEntity; R:PRoom):
+    r.doom x.id
+
+proc on_explode  {.multicast.}
+proc explode* (X:PEntity) =
+  x.on_explode
+  x.scheduleRC do (X:PEntity;R:PRoom):
+    r.doom x.id
 
 
 
@@ -301,7 +329,9 @@ proc bbCentered* (p: TPoint2d; w, h: float): boundingbox.TBB =
 type
   Sprite* = object
     s: PSprite
+    t: PTilesheet
     w,h: int
+    dontRotate: bool
 
 Sprite.setDestructor do (X:PEntity): 
   if not X[Sprite].s.isNil:
@@ -315,6 +345,7 @@ msgImpl(Sprite,unserialize) do (J:PJsonNode; R:PRoom):
       sp.s = t.create(0,0)
       sp.w = t.rect.width
       sp.h = t.rect.height
+      sp.t = t
     withkey(j,"origin",j):
       if not sp.s.isNil:
         sp.s.setOrigin vec2f(point2d(j))
@@ -331,7 +362,8 @@ msgImpl(Sprite,unserialize) do (J:PJsonNode; R:PRoom):
 msgImpl(Sprite,draw) do (R:PRenderWindow):
   let s = entity[sprite].s
   s.setPosition entity.getPos.vec2f
-  s.setRotation entity.getAngle.radToDeg
+  if not entity[sprite].dontRotate:
+    s.setRotation entity.getAngle.radToDeg
   s.setScale entity.getScale
   R.draw s
 
@@ -345,60 +377,39 @@ msgImpl(Sprite,calculateBB) do (result: var TBB):
     )
   )
 
+proc setRow* (S:VAR SPRITE; R:INT) =
+  s.t.setRow s.s, r
+proc setCol* (S:VAR SPRITE; C:INT) =
+  s.t.setCol s.s, c
 
 type
-  AnimatedSprite = object 
-    t: PTilesheet
-    index: int
-    timer: float
-    delay: float
+  SpriteColsAreAnimation* = object
+    index*:int
+    timer*,delay*:float
+SpriteColsAreAnimation.requiresComponent Sprite
 
-AnimatedSprite.setInitializer do (e: PEntity):
-  e[animatedsprite] = AnimatedSprite(timer: 1.0, delay: 1.0, index: 0)
-
-msgImpl(AnimatedSprite, unserialize) do (j: PJsonNode; R:PRoom):
-  if j.hasKey("AnimatedSprite"):
-    let j = j["AnimatedSprite"]
-    let sp = entity[animatedsprite].addr
-    
-    withKey(j, "file", f):
-      sp.t = tilesheet(f.str)
-    withKey(j, "delay", d):
-      sp.delay = d.toFloat
-      sp.timer = sp.delay
-    withKey(j, "delay-ms", d):
-      sp.delay = d.toFloat / 1000
-      sp.timer = sp.delay
-
-msgImpl(AnimatedSprite, update) do (dt: float):
-  let sp = entity[animatedsprite].addr
-  sp.timer -= dt
-  if sp.timer < 0:
-    sp.timer = sp.delay
-    sp.index = (sp.index + 1) mod sp.t.cols
-
-msgImpl(AnimatedSprite, draw, 9001) do (R: PRenderWindow):
-  var s = entity[animatedsprite].t.create(0,entity[animatedsprite].index)
-  s.setPosition entity.getPos.vec2f 
-  s.setRotation entity.getAngle.radToDeg
-  s.setScale entity.getScale
-  R.draw s
-  destroy s
-
-msgImpl(AnimatedSprite, calculateBB) do (result:var TBB):
-  let scale = entity.getScale
-  result.expandToInclude(bbCentered(
-    entity.getPos,
-    entity[animatedsprite].t.rect.width.float * scale.x, 
-    entity[animatedsprite].t.rect.height.float * scale.y
-  ))
+SpriteColsAreAnimation.setInitializer do (X:PENTITY):
+  x[spriteColsAreAnimation].timer = 1.0
+  x[spriteColsAreAnimation].delay = 1.0
+msgImpl(SpriteColsAreAnimation,unserialize) do (J:PJsonNode;R:PRoom):
+  withKey( j,"SpriteColsAreAnimation",sa ):
+    if sa.kind != jBool:
+      let d = sa.toFloat
+      entity[spriteColsAreAnimation].delay = d
+      entity[spriteColsAreAnimation].timer = d
+msgImpl(SpriteColsAreAnimation,update) do (DT:FLOAT):
+  let sa = entity[spriteColsAreAnimation].addr
+  sa.timer -= dt
+  if sa.timer <= 0:
+    sa.timer = sa.delay
+    sa.index = (sa.index + 1) mod entity[sprite].t.cols
+    entity[sprite].setCol sa.index
 
 type
   OneShotAnimation* = object
-    t*: PTilesheet
     index*: int
-    delay*: float
-    timer*: float
+    delay*,timer*:float
+OneShotAnimation.requiresComponent Sprite 
 
 OneShotAnimation.setInitializer do (E: PEntity):
   let osa = e[oneshotanimation].addr
@@ -406,37 +417,57 @@ OneShotAnimation.setInitializer do (E: PEntity):
   osa.timer = osa.delay
 
 msgImpl(OneShotAnimation,unserialize) do (J: PJsonNOde; R:PRoom):
-  if j.hasKey("OneShotAnimation"):
-    let j = j["OneShotAnimation"]
-    let sp = entity[oneshotanimation].addr
-    withKey(j, "file", f):
-      sp.t = tilesheet(f.str)
-    withKey(j, "delay-ms", d):
-      sp.delay = d.toFloat / 1000
-      sp.timer = sp.delay
-    withKey(j, "delay", d):
-      sp.delay = d.toFloat
-      sp.timer = sp.delay
-
-msgImpl(OneShotAnimation,draw,9001) do (R: PRenderWindow):
-  let s = entity[oneshotanimation].t.create(0, entity[oneshotanimation].index)
-  s.setPosition entity.getPos.vec2f
-  s.setRotation entity.getAngle.radToDeg
-  s.setScale entity.getScale
-  R.draw s
-  destroy s
+  withKey(j,"OneShotAnimation",osa):
+    let d = osa.toFloat
+    entity[oneShotAnimation].delay = d
+    entity[oneShotAnimation].timer = d
 
 msgImpl(OneShotAnimation, update) do (dt: float):
   let osa = entity[oneShotAnimation].addr
   osa.timer -= dt
   if osa.timer <= 0:
     osa.timer = osa.delay
-    osa.index = (osa.index + 1)
-    if osa.index == osa.t.cols:
-      entity.scheduleRC do (X: PEntity; R: PRoom):
-        r.doom(x.id)
+    osa.index.inc 1 
+    if osa.index == entity[sprite].t.cols:
+      entity.expire
+      discard """ entity.scheduleRC do (X: PEntity; R: PRoom):
+        r.doom(x.id) """
+    else:
+      entity[sprite].setCol osa.index
 
-type
+
+type SpriteRowsAreRotation* = object
+SpriteRowsAreRotation.requiresComponent Sprite
+
+msgImpl(SpriteRowsAreRotation, unserialize) DO (J:PJSONNODE;R:PROOM):
+  entity[sprite].dontRotate = true
+  
+msgImpl(SpriteRowsAreRotation, postUpdate) do (R:PROOM):
+  let row = int( (( entity.getAngle + DEG90 ) mod DEG360) / DEG360 * entity[sprite].t.rows.float )
+  entity[sprite].setRow row
+
+type SpriteColsAreRoll* = object
+  roll: float
+  rollRate: float
+SpriteColsAreRoll.setInitializer do (X:PENTITY):
+  X[SpriteColsAreRoll].rollRate = 0.2
+
+
+msgImpl(SpriteColsAreRoll, turnRight) do :
+  entity[SpriteColsAreRoll].roll -= entity[SpriteColsAreRoll].rollRate
+msgImpl(SpriteColsAreRoll, turnLeft) do :
+  entity[SpriteColsAreRoll].roll += entity[SpriteColsAreRoll].rollRate
+
+msgImpl(SpriteColsAreRoll, postUpdate) DO (R:PROOM):
+  let rs = entity[spriteColsAreRoll].addr
+  if rs.roll < -1: rs.roll = -1
+  elif rs.roll > 1: rs.roll = 1
+  else:         rs.roll *= 0.98
+  let col = int( ( (rs.roll + 1.0) / 2.0) * (< entity[sprite].t.cols).float )
+  entity[sprite].setCol col
+  
+
+discard """ type
   RollSprite* = object
     t: PTilesheet
     roll: float
@@ -468,7 +499,7 @@ msgImpl(RollSprite, update) do (dt: float):
   if rs.roll < -1: rs.roll = -1
   elif rs.roll > 1: rs.roll = 1
   else:         rs.roll *= 0.98
-
+ """
 
 type
   Named* = object
@@ -492,7 +523,49 @@ msgImpl(CollisionHandler, handleCollision) do (other: PEntity) :
   entity[CollisionHandler].f(entity, other)
 
 
+type Owned* = object
+  by*: int
+proc getOwner* : int {.unicast.}
+proc setOwner* (ent:int) {.unicast.}
+msgImpl(Owned, getOwner) do -> int:
+  return entity[Owned].by
+msgImpl(Owned, setOwner) do (ent:int):
+  entity[Owned].by = ent
 
+
+type Bouncy* = object
+  bounces*: int
+
+msgImpl(Bouncy,presolveCollision) do (other:PEntity) -> bool:
+  #
+  
+discard """ msgImpl(Bouncy, handleCollision) do (other: PEntity; handled: var bool) :
+  #if handled: return
+  
+  if other.hasComponent(Owned) and other[owned].by == entity.id:
+    #handled = true
+    return
+    
+  if entity[bouncy].bounces > 0:
+    entity[bouncy].bounces.dec 1
+    #handled = true
+    return true # return true for do collision
+  else:
+    # explodes """
+
+
+type ExplosionAnimation* = object
+  entity*: PJsonNode
+
+msgImpl(ExplosionAnimation, unserialize) do (J:PJsonNode; R:PRoom):
+  withKey( j, "ExplosionAnimation", j ):
+    entity[explosionAnimation].entity = j
+
+
+type ExplodesOnContact* = object
+
+#msgImpl(ExplodesOnContact, handleCollision) DO (other:PEntity; handled:var bool):
+  
 
 
 
@@ -591,8 +664,7 @@ msgImpl(Actuators,getTurnspeed) do -> float:
 type Thrusters* = object
   rvSpeed*, fwSpeed*:float
 msgImpl(Thrusters,unserialize) do(J:PJsonNOde; R:PRoom):
-  if j.hasKey"Thrusters" and j["Thrusters"].kind == jObject:
-    let j = j["Thrusters"]
+  withkey( j,"Thrusters",j ):
     if j.hasKey"fwspeed": entity[Thrusters].fwspeed = j["fwspeed"].toFloat
     if j.hasKey"rvspeed": 
       let rvspd = j["rvspeed"]
@@ -620,20 +692,16 @@ type Parallax* = object
 
 
 
-type Owned* = object
-  by*: int
-proc getOwner* : int {.unicast.}
-proc setOwner* (ent:int) {.unicast.}
-msgImpl(Owned, getOwner) do -> int:
-  return entity[Owned].by
-msgImpl(Owned, setOwner) do (ent:int):
-  entity[Owned].by = ent
-
 type PlayerController* = object
 
 type
   TeamMember* = object
     team*: int
+
+proc getTeam* : TMaybe[int] {.unicast.}
+msgImpl(TeamMember, getTeam) do -> TMaybe[int] :
+  result = just( entity[TeamMember].team )
+
 
 type
   Role* = object
@@ -663,8 +731,7 @@ msgImpl(Lifetime,unserialize) do (J:PJsonNode; R:PRoom):
 msgImpl(Lifetime, update) do (dt:float):
   entity[Lifetime].time -= dt
   if entity[Lifetime].time <= 0:
-    entity.scheduleRC do (X: PEntity; R: PRoom):
-      r.doom(x.id)
+    entity.expire
 
 type
   VelocityLimit* = object
@@ -796,4 +863,13 @@ msgImpl(AttachedVehicle,postUpdate) do (R:PROOM) :
     delta.rotate ent_angle
     veh.setPos ent_pos + delta
 
+
+
+
+type ClientControlled* = object
+  client*: int
+
+import enet
+type EnetPeer* = object
+  p*: PPeer
 

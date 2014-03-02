@@ -1,7 +1,7 @@
 import private/gsm, private/sfgui, 
   private/components, private/gamedat, private/room,
   fowltek/entitty, private/gamestates,
-  csfml, math, parseopt2, private/logging
+  csfml, math, parseopt2, os, private/logging
 
 randomize()
 let L = newConsoleLogger(when defined(debug): lvlDebug else: lvlInfo)
@@ -28,15 +28,14 @@ for kind,key,val in getopt():
 g = newGod( videoMode(800,600,32),"Roids" )
 
 if zone.isNil:
-  
   g.replace lobbyState()
 
 else:
 
-  gamedata = loadGameData(zone)
+  let gamedata = loadGameData("data" / zone)
   if startRoom.isNil: startRoom = gameData.firstRoom
 
-  g.replace newRoomGS(startRoom)
+  g.replace newRoomGS(gameData, startRoom)
   
 g.run
 

@@ -42,11 +42,14 @@ var
 type
   PWidget* = ref object{.inheritable.}
     vtable*: ptr TWidgetVT
+    callbacks*: TCallbackSet
     sons*: seq[PWidget]
-    update_f*: proc(G: PWidget)
     hasFocus: TMaybe[PWidget]
     master: PWidget
-  
+    
+  TCallbackSet* = object
+    update*: proc(G:PWidget)
+    
   TWidgetVT* = object
     draw*: proc(G: PWidget; W: PRenderWindow)
     setPos*: proc(G: PWidget; P: TPoint2d)
@@ -71,8 +74,12 @@ proc onTextEntered (G:PWIDGET; UNICODE:CINT): BOOL {.inline.} =
   result = g.vtable.onTextEntered(g, unicode)
 proc onFocus (G:PWIDGET; GAINED:BOOL) {.inline.}=
   g.vtable.onFocus(g,gained)
+
+proc `update_f=`* (g:PWidget; f:proc(g:PWidget)) {.inline.} =
+  g.callbacks.update = f 
 proc update* (g: PWidget) {.inline.}=
-  g.update_f(g)
+  g.callbacks.update(g)
+
 
 proc child*(g: PWidget): PWidget = g.sons[0]
 
@@ -125,8 +132,11 @@ proc default_update (G:PWidget) =
     for widget in g.sons:
       update(widget)
 
+proc `||=` [T:ref|ptr|proc] (L: var T; R: T) =
+  if L.isNil: L = R
+
 proc init* (g: PWidget; sons = 0) =
-  if g.update_f.isNil: g.update_f = default_update
+  g.callbacks.update ||= default_update
   if g.vtable.isNil: g.vtable = defaultVT.addr
   if g.sons.isNil: g.sons.newSeq sons
 
