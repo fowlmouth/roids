@@ -1,6 +1,9 @@
 {
   "hornet":{  
-    "RollSprite": { "file": "vehicles/terran/hornet_54x54.png" },
+    "Sprite": { "file": "vehicles/terran/hornet_54x54.png" },
+    "SpriteColsAreRoll":true,
+    "SpriteRowsAreRotation":true,
+    
     "Body": { "mass": 10.0, "shape": "circle", "radius": 18 },
     "Components": ["InputController"],
     "Actuators": 39300,
@@ -8,7 +11,7 @@
       "fwspeed": 45,
       "rvspeed": -1,
     },
-    "Emitters": ["Mass Driver", "Bomb"],
+    "Emitters": ["Mass Driver", "Bomb", "Skithzar Mine", "MIRV Launcher"],
     "AngularDampners": 0.94,
     "VelocityLimit": 350.0,
     "Health": 70,
@@ -17,7 +20,10 @@
   },
   "a09":{
   
-    "RollSprite":{"file": "vehicles/A09_54x54.png"},
+    "Sprite":{"file":"vehicles/A09_54x54.png"},
+    "SpriteColsAreRoll":true,
+    "SpriteRowsAreRotation":true,
+    
     "Body": {"mass": 10.0, "shape": "circle", "radius": 18},
     "Components": ["InputController"],
     "Actuators": 38000,
@@ -33,7 +39,8 @@
     
   },
   "Armakith":{
-    "RollSprite":{"file":"vehicles/multi/Armakith_68x68.png"},
+    "Sprite":{"file":"vehicles/multi/Armakith_68x68.png"},
+    "SpriteRowsAreRotation":true,
     "Body":{"mass":50,"shape":"circle","radius":30},
     "Components":["InputController"],
     "AttachedVehicle":[
@@ -60,6 +67,36 @@
     ],
     "ZOrder":1,
   },
+  
+  "Daggir":{  
+    "Sprite":{"file":"vehicles/multi/bipolar_64x64.png"},
+    "SpriteRowsAreRotation":true,
+    
+    "Body":{"mass":50,"shape":"circle","radius":30},
+    
+    "Actuators":39000,
+    "Thrusters":{
+      "fwspeed":75,
+      "rvspeed":40
+    },
+    "AngularDampners":0.99,
+    "VelocityLimit":325,
+    "Emitters":[
+      "P-Cannon",
+    ],
+    "Battery":{"capacity":2100,"regen-rate":550},
+    
+    "AttachedVehicle": [
+      {"vehicle":"vehicles.Daggir.turret","delta":[-8,0]}
+    ]
+  },
+  "Daggir.turret":{
+    "Sprite":{"file":"vehicles/multi/bipolarTurret_64x64.png"},
+    "SpriteRowsAreRotation":true,
+    "Components":["Position","Orientation"],
+    "ZOrder":1
+  },
+  
   "infantry":{
     "RollSprite":{"file":"vehicles/ManRun2_112x112.png"},
     "Body":{"mass":11,"shape":"circle","radius":8.5},

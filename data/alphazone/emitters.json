@@ -70,4 +70,18 @@
   },
   
   
+  "Skithzar Mine":{
+    "emits":"bullets.skithmine",
+    "delay":["ms",250],
+    "inherit-velocity":0,
+    "muzzle-velocity":0,
+  },
+  "MIRV Launcher":{
+    "emits":"bullets.mirv1",
+    "delay":["seconds",1],
+    "inherit-velocity":0.8,
+    "muzzle-velocity":200,
+    "fire-sound":"missile2.wav"
+  },
+  
 }

@@ -1,5 +1,5 @@
 { "bounds":{"shape":"circle","radius":1000},
-  "playable":["hornet"],
+  "playable":["vehicles.hornet"],
   "objects": [
     ["DefSat", {"Position": [1000,1000]}],
     ["Spawn Point",{"Position":[1000,500]}],

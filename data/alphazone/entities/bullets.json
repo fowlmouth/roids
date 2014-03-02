@@ -1,45 +1,92 @@
 {
   "p-bullet":{
+    "Sprite": { "file": "bullets/EbulletA_12x12.png"},
+    "SpriteColsAreAnimation":["milliseconds",100],
+    
     "Lifetime": 2.8,
-    "AnimatedSprite": { "file": "bullets/EbulletA_12x12.png", "delay":0.1},
     "Body": { "mass": 0.3, "shape": "circle", "radius": 3 },
     "Damage": {},
     "Explosion": "bullets.p-bullet.explosion",
     "Trail":{"entity":"bullets.p-bullet.trail","delay-ms":110},
-  
   },
   "p-bullet.explosion":{
-    "OneShotAnimation":{"file":"bullets/EBulletHit_32x32.png","delay":0.1},
+    "OneShotAnimation":["milliseconds",100],
+    "Sprite":{"file":"bullets/EBulletHit_32x32.png"},
+    
     "Components":["Position"]
   },
   "p-bullet.trail":{
-    "OneShotAnimation":{"file":"bullets/bullettrail2_12x12.png","delay-ms":80},
+    "OneShotAnimation":["milliseconds",80],
+    "Sprite":{"file":"bullets/bullettrail2_12x12.png"},
     "Components":["Position"]
   },
   
   "mass-driver":{
-    "RollSprite":{"file":"bullets/MassDriver_14x14.png"},
+    "Sprite":{"file":"bullets/MassDriver_14x14.png"},
+    "SpriteRowsAreRotation":true,
+    
     "Body":{"mass":0.3,"shape":"circle","radius":3},
     "Lifetime":2.8
   },
   
+  "mirv1":{
+    "Sprite":{"file":"bullets/MissileF_32x32.png"},
+    "SpriteRowsAreRotation":true,
+    
+    "Body":{"mass":1.2,"shape":"circle","radius":3},
+    "Lifetime":["ms",300],
+    
+    "FireEmitterOnExplosion":"mirv-explosion",
+  },
+  "mirv2":{
+    "Sprite":{"file":"bullets/MissileE_32x32.png"},
+    "SpriteRowsAreRotation":true,
+    
+    "Body":{"mass":0.3,"shape":"circle","radius":1.2},
+    "Lifetime":["ms",700],
+    
+  },
+  
   "bomb-whack":{
-    "AnimatedSprite":{"file":"bullets/Ebomb_20x20.png","delay":0.1},
+    "Sprite":{"file":"bullets/Ebomb_20x20.png"},
+    "SpriteColsAreAnimation": ["milliseconds",100],
+    
     "Body":{"mass":0.35,"shape":"circle","radius":6},
     "Lifetime":2.8,
+    
     "TriggerRadius":12,
+    "ExplosionAnimation":{"file":"bullets.bomb-whack.explosion"},
+    "ExplodesOnContact":true,
+  },
+  "bomb-whack.explosion":{
+    "Sprite":{"file":"explosions/bombhit2_64x64.png"},
+    "OneShotAnimation":["ms",80],
+    
+    "Components":["Position"]
   },
   "bomb-graviton":{
-    "AnimatedSprite":{"file":"bullets/Ebomb_20x20.png","delay":0.1},
+    "Sprite":{"file":"bullets/Ebomb_20x20.png"},
+    "SpriteColsAreAnimation":["ms",100],
+    
+    "Lifetime":["seconds",1.9],
+    
     "Body":{"mass":0.8,"shape":"circle","radius":6},
     "GravitySensor":{"radius":250,"force":800},
     "ProximitySensor":{"radius":150}
   },
   
-  
+  "skithmine":{
+    "Sprite":{"file":"bullets/SkithzarMine_32x32.png"},
+    "SpriteColsAreAnimation":["ms",82],
+    
+    "Lifetime":["seconds", 3.5],
+    "Body":{"mass":3.0,"shape":"circle","radius":6},
+    "ProximitySensor": 150,
+  },
   
   "repel":{
-    "OneShotAnimation":{"file":"explosions/ShockwaveLarge_156x156.png","delay":0.1},
+    "Sprite":{"file":"explosions/ShockwaveLarge_156x156.png"},
+    "SpriteColsAreAnimation":["ms",100],
     "Body":{"mass":100.0, "shape":"circle","radius":0.1},
     "GravitySensor":{"force":-500,"radius":512}
   

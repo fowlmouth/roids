@@ -1,17 +1,20 @@
 {
-  "bounds": {"width": 2000, "height": 2000},
+  "bounds": {"width": 20000, "height": 20000},
+  "world":{
+    "width":20000,"height":20000,
+    "partition": {
+      "type":"bbtree",
+      "width":1000,"height":1000
+    },
+  },
   "playable":["hornet"],
   "objects":[
-    {"obj":"starfield1","data":{"Position":[0,0]}},
-    {"obj":"wormhole", "data":{
-      "Position": [1000,1000],
-      "CollisionHandler": {"action": "warp","position":[10,10] },
-      "GravitySensor":{"force":80000,"radius":1000} 
-    }},{"obj":"asteroid creator","data":{
-      "Position": [1500, 1100],
-      "Orientation": ["degrees", 240],
-      "Emitter": { "delay-ms": 2000, "mode":"auto", "muzzle-velocity":50 }
-    }}
+    ["starfield1",{"Position":[0,0]}],
+    ["wormhole",{
+      "GravitySensor":{"force":80,"radius":9800},
+      "Position":[10000,10000],
+      }],
+
   ],
   "teams":{
     "Alpha": {

@@ -2,12 +2,13 @@
   "bounds": {
     "width": 4000, "height": 4000
   },"playable":[
-    "vehicles.hornet","vehicles.a09","vehicles.Armakith",
+    "vehicles.hornet","vehicles.a09","vehicles.Armakith","vehicles.Daggir",
   ],
   "start-camera":[2000,2000],
   "objects":[
     ["wormhole", {
       "Position": [2000,2000],
+      "GravitySensor":{"force":45},
     }],
     {"obj": "planetopia", "extra-data": {
       "Position": [1900,1500],

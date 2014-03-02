@@ -2,14 +2,25 @@
   "name": "scum",
   "controls": "keyboard",
   
+  "servers":{
+    "localhost":{"address":"localhost","port":8024}
+  },
+  
   "control-schemes": {
     "keyboard": {
       "forward": ["key", "up"],
       "backward": ["key", "down"],
       "turnright": ["key","right"],
       "turnleft":["key","left"],
-      "fireemitter":["key","lcontrol"],
-      "fireemitter1":["key","tab"],
+      "strafeleft": ["key","z"],
+      "straferight":["key","x"],
+      "fireemitter":["and",["key","lcontrol"],["not",["key","lshift"]]],
+      "fireemitter1":["and",["key","tab"],["not",["key","lshift"]]],
+      "fireemitter2":["and",["key","lshift"],["key","tab"]],
+      "fireemitter3":["and",["key","lcontrol"],["key","lshift"]],
+      "fireemitter4":["key","q"],
+      "fireemitter5":["key","a"],
+      "fireemitter6":["key","s"],
       
       "spec": ["key", "f12"],
       "skillmenu": ["key","f11"],

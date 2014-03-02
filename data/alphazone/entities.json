@@ -1,47 +1,61 @@
 {
   "ast0": {
-    "AnimatedSprite": { "file": "asteroids/Rock24a_24x24.png" , "delay": 0.1 },
+    "Sprite": { "file": "asteroids/Rock24a_24x24.png" , "delay": 0.1 },
+    "SpriteColsAreAnimation":["milliseconds",100],
     "Body": { "mass": 0.5, "shape": "circle", "radius": 8.5,"elasticity":0.3 }
   },"ast1":{
-    "AnimatedSprite": { "file": "asteroids/Rock24b_24x24.png" , "delay": 0.1 },
+    "Sprite": { "file": "asteroids/Rock24b_24x24.png" , "delay": 0.1 },
+    "SpriteColsAreAnimation":["milliseconds",100],
     "Body": { "mass": 0.6, "shape": "circle", "radius": 9,"elasticity":0.3 }
   },"ast2":{
-    "AnimatedSprite": { "file": "asteroids/Rock32a_32x32.png" , "delay": 0.1 },
+    "Sprite": { "file": "asteroids/Rock32a_32x32.png" , "delay": 0.1 },
+    "SpriteColsAreAnimation":["milliseconds",100],
     "Body": { "mass": 0.89, "shape": "circle", "radius": 13,"elasticity":0.3 }
   },"ast3":{
-    "AnimatedSprite": { "file": "asteroids/Rock48a_48x48.png" , "delay": 0.1 },
+    "Sprite": { "file": "asteroids/Rock48a_48x48.png" , "delay": 0.1 },
+    "SpriteColsAreAnimation":["milliseconds",100],
     "Body": { "mass": 1.8, "shape": "circle", "radius": 18,"elasticity":0.3 }
   },"ast4":{
-    "AnimatedSprite": { "file": "asteroids/Rock48b_48x48.png" , "delay": 0.1 },
+    "Sprite": { "file": "asteroids/Rock48b_48x48.png" , "delay": 0.1 },
+    "SpriteColsAreAnimation":["milliseconds",100],
     "Body": { "mass": 1.8, "shape": "circle", "radius": 16,"elasticity":0.3 }
   },"ast5":{
-    "AnimatedSprite": { "file": "asteroids/Rock48c_48x48.png" , "delay": 0.1 },
+    "Sprite": { "file": "asteroids/Rock48c_48x48.png" , "delay": 0.1 },
+    "SpriteColsAreAnimation":["milliseconds",100],
     "Body": { "mass": 1.8, "shape": "circle", "radius": 18,"elasticity":0.3 }
   },"ast6":{
-    "AnimatedSprite": { "file": "asteroids/Rock64a_64x64.png" , "delay": 0.1 },
+    "Sprite": { "file": "asteroids/Rock64a_64x64.png" , "delay": 0.1 },
+    "SpriteColsAreAnimation":["milliseconds",100],
     "Body": { "mass": 2.1, "shape": "circle", "radius": 26,"elasticity":0.3 }
   },"ast7":{
-    "AnimatedSprite": { "file": "asteroids/Rock64b_64x64.png" , "delay": 0.1 },
+    "Sprite": { "file": "asteroids/Rock64b_64x64.png" , "delay": 0.1 },
+    "SpriteColsAreAnimation":["milliseconds",100],
     "Body": { "mass": 2.2, "shape": "circle", "radius": 26,"elasticity":0.3 }
   },"ast8":{
-    "AnimatedSprite": { "file": "asteroids/Rock64c_64x64.png" , "delay": 0.1 },
+    "Sprite": { "file": "asteroids/Rock64c_64x64.png" , "delay": 0.1 },
+    "SpriteColsAreAnimation":["milliseconds",100],
     "Body": { "mass": 2.2, "shape": "circle", "radius": 26,"elasticity":0.3 }
   },
   
   "upgrade":{
     "Body":{"mass":0.3,"shape":"circle","radius":3},
-    "AnimatedSprite":{"file":"prize/SuperBombPrize_darkgreen_24x24.png","delay":0.1},
+    "Sprite":{"file":"prize/SuperBombPrize_darkgreen_24x24.png"},
+    "SpriteColsAreAnimation":["milliseconds",100],
   },
   "wormhole":{
   
-    "AnimatedSprite": { "file": "wormhole_192x192.png", "delay": 0.1 },
+    "Sprite": { "file": "wormhole_192x192.png"},
+    "SpriteColsAreAnimation":["milliseconds",100],
+    
     "Body": { "mass": "infinity", "shape": "circle", "radius": 5,"elasticity":0.3 },
-    "GravitySensor" : { "radius": 1300, "force": 8000 } ,
+    "GravitySensor" : { "radius": 1300, "force": 196 } ,
     "CollisionHandler": {"action": "warp", "position": [30,30]}
     
   },"weak wormhole":{
   
-    "AnimatedSprite": { "file": "wormhole_192x192.png", "delay": 0.1 },
+    "Sprite": { "file": "wormhole_192x192.png", "delay": 0.1 },
+    "SpriteColsAreAnimation":["milliseconds",100],
+    
     "Body": { "mass": "infinity", "shape": "circle", "radius": 5,"elasticity":0.3 },
     "GravitySensor" : { "radius": 500, "force": 1600 } ,
     "CollisionHandler": {"action": "warp", "position": [30,30]}
@@ -57,23 +71,31 @@
     "Components": ["Position", "Orientation"],
     "Emitter": {
       "emits": ["group", "asteroids"],
-      "delay-ms": 2000,
+      "delay":["seconds",2],
       "logic": ["<", ["entities-alive", ["group", "asteroids"]], 100]
     }
 
   },"iron": {
-    "AnimatedSprite": { "file": "resources/IronOre_32x32.png" },
+    "Sprite": { "file": "resources/IronOre_32x32.png" },
+    "SpriteColsAreAnimation":true,
+    
     "Body": { "shape": "circle", "radius": 14, "mass": 1.0 },
   },"resourceA":{
-    "AnimatedSprite":{"file":"resources/ResourceA_26x26.png"},
+    "Sprite":{"file":"resources/ResourceA_26x26.png"},
+    "SpriteColsAreAnimation":true,
+    
     "Body":{"shape":"circle","radius":14,"mass":1.0},
   },"resourceB":{
-    "AnimatedSprite":{"file":"resources/ResourceB_26x26.png"},
+    "Sprite":{"file":"resources/ResourceB_26x26.png"},
+    "SpriteColsAreAnimation":true,
+    
     "Body":{"shape":"circle","radius":14,"mass":1.0},
   
   },"iron-asteroid": {
   
-    "AnimatedSprite": { "file": "Rock48b_48x48.png" , "delay": 0.1 },
+    "Sprite": { "file": "Rock48b_48x48.png" , "delay": 0.1 },
+    "SpriteColsAreAnimation":["milliseconds",100],
+    
     "Body": { "mass": 1.8, "shape": "circle", "radius": 18,"elasticity":0.3 },
     "Inventory": [
       ["iron", 4]
@@ -85,27 +107,31 @@
     
   },"planetopia": {
   
-    "AnimatedSprite": {"file":"planets/planet6_300x300.png"},
+    "Sprite": {"file":"planets/planet6_300x300.png"},
+    
     "Body":{"mass": 100, "shape":"circle", "radius":95, "elasticity":0.3},
     "Health":50000,
-    "GravitySensor": {"force": 2500, "radius": 500}
+    "GravitySensor":{"force":30, "radius": 500}
     
   },"luna":{
 
-    "AnimatedSprite":{"file":"planets/planet20_300x300.png"},
+    "Sprite":{"file":"planets/planet20_300x300.png"},
     "Scale":0.5,
+    
     "Body":{"mass": 50, "shape":"circle", "radius": 46, "elasticity": 0.3},
     "Health":20000,
-    "GravitySensor": {"force": 500, "radius": 210}
+    "GravitySensor":{"force":10, "radius": 210}
 
   },"warp-in": {
 
-    "OneShotAnimation": {"file":"warp_128x128.png","delay-ms":25},
+    "Sprite":{"file":"warp_128x128.png"},
+    "OneShotAnimation":["milliseconds",25],
+    
     "ZOrder": -2,
     "Components":["Position"]
   
   },"flag":{
-    "AnimatedSprite":{"file":"foo"}
+    "Sprite":{"file":"foo"}
     
   },"Spawn Point":{
     
@@ -113,11 +139,13 @@
     "Role":"spawn-point",
   
   },"Solar Mold":{
-    "AnimatedSprite":{"file":"mold/spaceMold_80x80.png", "delay-ms":70},
+    "Sprite":{"file":"mold/spaceMold_80x80.png"},
+    "SpriteColsAreAnimation":["milliseconds",70],
     "Body":{"mass":60,"shape":"circle","radius":38}
     
   },"Mold Spore":{
-    "AnimatedSprite":{"file":"mold/spaceMoldSpore_32x32.png","delay-ms":300},
+    "Sprite":{"file":"mold/spaceMoldSpore_32x32.png"},
+    "SpriteColsAreAnimation":["milliseconds", 300],
     "Body":{"mass":60,"shape":"circle","radius":14},
     
   },"starfield1":{
