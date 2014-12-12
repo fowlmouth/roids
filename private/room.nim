@@ -1,14 +1,14 @@
 
 import 
-  fowltek/entitty, fowltek/idgen, fowltek/bbtree,fowltek/boundingbox, 
+  entoody, fowltek/idgen, fowltek/bbtree,fowltek/boundingbox, 
   private/components, private/gamedat,  private/room_interface, private/debug_draw,
-  private/common, private/soundbuffer, fowltek/qtree2,
+  private/common, private/soundbuffer, fowltek/qtree,
   basic2d, math,json, algorithm
 import csfml except pshape
 import chipmunk as cp except TBB
 
 
-proc newEnt* (R: PRoom; name: string): TEntity =
+proc newEnt* (R: PRoom; name: string): PEntity =
   when defined(debug):
     echo "Instantiating entity $#" % name
   let tj = r.gameData.entities.mget(name).addr
@@ -16,7 +16,7 @@ proc newEnt* (R: PRoom; name: string): TEntity =
   result.unserialize tj.j1, r
   result.unserialize tj.j2, r
 
-proc newEnt* (R: PRoom; name: PJsonNode): TEntity =
+proc newEnt* (R: PRoom; name: PJsonNode): PEntity =
   if name.kind == jArray and name[0].kind == jString and name[0].str == "group":
     return newEnt(r, R.gameData.random_from_group(name[1].str))
   elif name.kind == jString:
@@ -54,7 +54,7 @@ proc rem_from_systems* (ent:int;r:PRoom)=
   r.renderSys.remove r.getEnt(ent)
   r.getEnt(ent).removeFromSpace(r.physSys.space)
 
-proc add_ent* (r: PRoom; e: TEntity): int {.discardable.} =
+proc add_ent* (r: PRoom; e: PEntity): int {.discardable.} =
   result = r.ent_id.get
   if r.ents.len < result+1: r.ents.setLen result+1
   r.ents[result] = e
@@ -303,7 +303,7 @@ proc initRoom (room: PRoom; gameData: PGameData; name: string) =
         entity_type = entity[0]
         entity_data = entity[1]
 
-      var ent: TEntity
+      var ent: PEntity
       ent = room.newEnt(entity_type)
       dom.addComponents(ent, TeamMember)
       ent.unserialize entity[1], room
@@ -344,7 +344,7 @@ proc initRoom (room: PRoom; gameData: PGameData; name: string) =
       return
     
     for i in 0 .. < count:
-      var ent: TEntity
+      var ent: PEntity
       try:
         ent = room.newEnt(objTy)
       except EInvalidKey:

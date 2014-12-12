@@ -264,14 +264,14 @@ proc broadcast* (H:PHost; channel: cuchar; pkt:var OPkt; flags: cint = 0) =
   #destroy p
 
 
-import components, fowltek/entitty
+import components, entoody
 
 var sync_component_size* : seq[int]
-newSeq sync_component_size, entitty.numComponents
+newSeq sync_component_size, entoody.numComponents
 
 type TSyncCompF* = proc(entity: PEntity): seq[byte] 
 var sync_component_functions* : seq[TSyncCompF]
-newSeq sync_component_functions, entitty.numComponents
+newSeq sync_component_functions, entoody.numComponents
 
 template syc_impl (ty:expr; body:stmt): stmt =
   block:

@@ -1,7 +1,7 @@
 import 
   private/gsm, private/room,private/room_interface,
   private/components, private/gamedat, private/debug_draw,
-  fowltek/maybe_t, fowltek/entitty, fowltek/boundingbox, fowltek/bbtree,
+  fowltek/maybe_t, entoody, fowltek/boundingbox, fowltek/bbtree,
   fowltek/pointer_arithm, 
   private/sfgui2, private/common, private/color_gradient, 
   json, csfml_colors,csfml,csfml_audio, os

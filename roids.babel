@@ -7,4 +7,4 @@ description:"not for human consumption"
 bin: "roids"
 
 [deps]
-requires: "fowltek >= 0.9.3, sfml >= 2.0, chipmunk >= 6.1"
+requires: "fowltek >= 0.9.3, sfml >= 2.0, chipmunk >= 6.1, https://bitbucket.org/fowlmouth/entoody >= 1.0"

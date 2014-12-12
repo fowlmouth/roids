@@ -1,7 +1,7 @@
-import chipmunk as cp
+import chipmunk as cp except TBB,TBBTree
 import 
-  fowltek/idgen, fowltek/entitty, fowltek/bbtree, fowltek/boundingbox,
-  fowltek/qtree2
+  fowltek/idgen, entoody, fowltek/bbtree, fowltek/boundingbox,
+  fowltek/qtree
 import 
   private/components, private/emitter_type,
   private/soundbuffer,
@@ -30,7 +30,7 @@ type
     members*: seq[int]
 
   PRoom* = ref object
-    ents*: seq[TEntity]
+    ents*: seq[PEntity]
     ent_id*: TIDgen[int]
     updateSYS*: PUpdateSystem
     doomSys*:PDoomSys
@@ -56,7 +56,7 @@ type
     parallaxEntities*: seq[int]
     case partitionType*: RoomPartitionType
     of RPTQuadTree:
-      qtree*: qtree2.TQuadTree[int]
+      qtree*: qtree.TQuadTree[int]
     of RPTBBtree:
       tree*: bbtree.TBBTree[int]
 
@@ -67,7 +67,7 @@ type
     teams*: seq[PTeam]
     teamNames*: TTable[string,int]
 
-proc initBasicSystems*(R:PRoom)=
+proc initBasicSystems*(r:PRoom)=
   r.updateSys = PUpdateSystem(active: @[])
   r.doomSys = PDoomSys(doomed: @[])
   r.physSys = PPhysicsSystem(space: newSpace())
@@ -80,26 +80,26 @@ proc initSystems* (r: PRoom) =
     parallaxEntities: @[]
   )
 
-proc init* (R:PRenderSystem) =
+proc init* (r:PRenderSystem) =
   case r.partitiontype
-  of rptBBtree:
-    r.tree = newBBtree[int]()
+  of RPTBBtree:
+    let tree: TBBTree[int] = bbtree.newBBtree[int]()
   else:
     discard
 
 proc get_ent* (r: PRoom; id: int): PEntity = r.ents[id]
-proc `[]`* (R: PRoom; ID: int): PEntity = r.ents[id]
+proc `[]`* (r: PRoom; id: int): PEntity = r.ents[id]
 
 proc doom* (r: PRoom; ent: int)=
   if r.getEnt(ent).id == ent:
     r.doomSys.doomed.add ent
 
-proc getTeam* (R: PRoom; id: int): TMaybe[PTeam] =
-  if id in 0 .. < R.teamSys.teams.len:
+proc getTeam* (r: PRoom; id: int): TMaybe[PTeam] =
+  if id in 0 .. < r.teamSys.teams.len:
     return Just(r.teamSys.teams[id])
-proc getTeam* (R: PRoom; name: string): TMaybe[PTeam] =
-  if R.teamSys.teamNames.hasKey(name):
-    return R.getTeam( r.teamSys.teamNames[name] )
+proc getTeam* (r: PRoom; name: string): TMaybe[PTeam] =
+  if r.teamSys.teamNames.hasKey(name):
+    return r.getTeam( r.teamSys.teamNames[name] )
 
-proc soundBuf* (R: PRoom): soundbuffer.PSoundBuffer {.inline.} =
-  R.gameData.soundBuf
+proc soundBuf* (r: PRoom): soundbuffer.PSoundBuffer {.inline.} =
+  r.gameData.soundBuf

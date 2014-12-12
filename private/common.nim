@@ -35,24 +35,24 @@ proc toggle* (switch: var bool){.inline.}=switch = not switch
 
 proc toInt* (n: PJSonNode): int =
   case n.kind
-  of jINT:
+  of JInt:
     result = n.num.int
   else:
     echo "this is not an int: ", n
 
 proc toFloat* (n: PJsonNode): float =
   case n.kind
-  of jInt:
+  of JInt:
     result = n.num.float
-  of jFloat:
+  of JFloat:
     result = n.fnum.float
-  of jString:
+  of JString:
     case n.str
     of "random":
       result = random(1.0)
     of "infinity":
       result = 1/0
-  of jArray:
+  of JArray:
     case n[0].str
     of "random":
       # random(x) 
@@ -80,14 +80,14 @@ proc getFloat* (result: var float; j: PJsonNode; key: string, default = 0.0) =
     result = default
 
 proc vector2d* (n: PJSonNode): TVector2d =
-  if n.kind == jString:
+  if n.kind == JString:
     case n.str
     of "random-direction":
-      result = polarVector2d(deg360.random, 1.0)
+      result = polarVector2d(Deg360.random, 1.0)
     return
   
-  assert n.kind == jArray
-  if n[0].kind == jString:
+  assert n.kind == JArray
+  if n[0].kind == JString:
     case n[0].str
     of "direction-degrees":
       result = polarVector2d(n[1].toFloat.degToRad, 1.0)
@@ -114,9 +114,9 @@ proc getPoint* (result: var TPoint2d; j: PJsonNode; key: string; default = point
 proc getInt* (result:var int; j:PJsonNode; key:string; default = 0) =
   if j.kind == JObject and j.hasKey(key):
     case j[key].kind
-    of jInt:
+    of JInt:
       result = j[key].num.int
-    of jFloat:
+    of JFloat:
       result = j[key].fnum.int
     else:
       echo "Not an int value: ", j[key]
@@ -127,7 +127,7 @@ proc getInt* (result:var int; j:PJsonNode; key:string; default = 0) =
     result = default
 
 
-template withKey* (J: PJsonNode; key: string; varname: expr; body:stmt): stmt {.immediate.}=
+template withKey* (j: PJsonNode; key: string; varname: expr; body:stmt): stmt {.immediate.}=
   if j.hasKey(key):
     let varname{.inject.}= j[key]
     block:

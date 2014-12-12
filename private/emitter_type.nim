@@ -20,14 +20,14 @@ type
     single,multi
   TEmitterKind* = object
     case k*: EmitterKind
-    of emitterKind.single: 
+    of EmitterKind.single: 
       single*: PJsonNode
-    of emitterKind.multi:
+    of EmitterKind.multi:
       multi*: seq[PEmitterType]
 
 
 
-proc unserialize* (ET: PEmitterType; J: PJsonNode) =
+proc unserialize* (et: PEmitterType; j: PJsonNode) =
   if j.hasKey("delay-ms"):
     et.delay = j["delay-ms"].num.int / 1000
   elif j.hasKey("delay"):
@@ -35,10 +35,10 @@ proc unserialize* (ET: PEmitterType; J: PJsonNode) =
 
   if j.hasKey("emits"):
     et.emitsJson = j["emits"]
-    et.kind.k = emitterkind.single
+    et.kind.k = EmitterKind.single
   elif j.hasKey("emitters"):
     et.emitsJson = j["emitters"]
-    et.kind.k = emitterkind.multi
+    et.kind.k = EmitterKind.multi
   
   
   withKey(j, "initial-impulse", j):  et.initialImpulse = vector2d(j)
@@ -47,17 +47,17 @@ proc unserialize* (ET: PEmitterType; J: PJsonNode) =
   withKey(j,"muzzle-velocity",mv):
     et.muzzleVelocity = mv.toFloat
   
-  withKey(j, "logic", j): et.logic = just(j)
+  withKey(j, "logic", j): et.logic = Just(j)
   
   withKey(j, "angle", j): et.angle = j.toFloat
   
   withKey(j, "fire-sound", j):
-    et.fireSound = maybe(loadSound(j))
+    et.fireSound = Maybe(loadSound(j))
   
   withKey(j, "energy-cost", j):
-    et.energyCost = just(j.toFloat)
+    et.energyCost = Just(j.toFloat)
 
-proc emitterTy* (name: string; J: PJsonNode): PEmitterType =
+proc emitterTy* (name: string; j: PJsonNode): PEmitterType =
   result = PEmitterType(name: name)
   result.unserialize j
 
@@ -71,7 +71,7 @@ proc copy* (et: PEmitterType): PEmitterType =
 
 proc settle* (et: PEmitterType; db: TTable[string, PEmitterType]) =
   case et.kind.k
-  of emitterKind.multi:
+  of EmitterKind.multi:
     # json is a list of emitter types
     et.kind.multi = newSeq[PEmitterType](et.emitsJson.len)
     for i in 0 .. < et.emitsJson.len:
@@ -84,10 +84,10 @@ proc settle* (et: PEmitterType; db: TTable[string, PEmitterType]) =
       if j.len == 2:
         et.kind.multi[i].unserialize j[1]
       
-  of emitterKind.single:
+  of EmitterKind.single:
     
     # nothing to do here
-    
+    discard
   else:
     raise newException(EIO, "Unknown emitter kind: "& $et.emitsJson)
 

@@ -6,7 +6,7 @@ import
   private/pkt_tools, private/packets, 
   private/gamedat,private/components,
   
-  fowltek/entitty,
+  entoody,
   fowltek/idgen
 
 if enet.initialize() != 0:

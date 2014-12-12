@@ -28,7 +28,7 @@ method draw* (w: PRenderWindow; gs: PWIYG) =
 proc whoIsYourGod : PGameState =
   let res = PWIYG()
   res.text = newText("Who is your god?", sfgui2.defaultFont, 14)
-  res.text.setColor green
+  res.text.setColor Green
   res.text.setPosition vec2f(10,10)
   return res
 
@@ -57,7 +57,7 @@ proc run* (g: PGod) =
   var evt: TEvent
   while g.w.isOpen:
     while g.w.pollEvent(evt):
-      if evt.kind == evtClosed: 
+      if evt.kind == EvtClosed: 
         g.w.close
         break
       g.topGS.handleEvent evt
@@ -65,7 +65,7 @@ proc run* (g: PGod) =
     
     g.topGS.update g.clock.restart.asMilliseconds/1000
     
-    g.w.clear black
+    g.w.clear Black
     g.w.draw g.topGS
     g.w.display
 

@@ -23,7 +23,7 @@ const
   assetsDir = "assets"
 
 proc free* (T: PTilesheet) =
-  destroy t.tex
+  destroy T.tex
 
 proc tilesheet* (file: string): PTilesheet =
   result = cache[file]
@@ -48,11 +48,11 @@ proc tilesheet* (file: string): PTilesheet =
   destroy img
   cache[file] = result
 
-proc setCol* (T:PTILESHEET; S:PSPRITE; C:INT) =
-  var r = s.getTextureRect
-  r.left = cint(c * t.rect.width)
-  s.setTextureRect r
-proc setRow* (T:PTILESHEET; S:PSPRITE; R:INT) =
-  var rect = s.getTextureRect
-  rect.top = cint(r * t.rect.height)
-  s.setTextureRect rect
+proc setCol* (T:PTILESHEET; S:PSPRITE; C:int) =
+  var r = S.getTextureRect
+  r.left = cint(C * T.rect.width)
+  S.setTextureRect r
+proc setRow* (T:PTILESHEET; S:PSPRITE; R:int) =
+  var rect = S.getTextureRect
+  rect.top = cint(R * T.rect.height)
+  S.setTextureRect rect

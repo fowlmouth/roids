@@ -1,4 +1,4 @@
-import fowltek/entitty, tables, json,math, os,
+import entoody, tables, json,math, os,
   private/components, private/common, private/room_interface,
   private/emitter_type, private/soundbuffer,
   basic2d,

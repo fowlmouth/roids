@@ -1,6 +1,6 @@
-import private/gsm, private/sfgui, 
+import private/gsm, 
   private/components, private/gamedat, private/room,
-  fowltek/entitty, private/gamestates,
+  private/gamestates,
   csfml, math, parseopt2, os, private/logging
 
 randomize()

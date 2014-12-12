@@ -14,14 +14,14 @@ type
     checks: int
     index: int
 
-proc loadSound* (J: PJsonNode): PSoundCached =
+proc loadSound* (j: PJsonNode): PSoundCached =
   var f: string
   var attenuation = 10.0
   
-  if j.kind == jObject:
+  if j.kind == JObject:
     f = j["file"].str
     withKey(j,"attenuation",j): attenuation = j.toFloat
-  elif j.kind == jString:
+  elif j.kind == JString:
     f = j.str
     
   if f.isNIL: return

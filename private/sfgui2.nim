@@ -55,7 +55,7 @@ type
     setPos*: proc(G: PWidget; P: TPoint2d)
     getBB*: proc(G: PWidget): TFloatRect
     onClick*: proc (g: PWidget; btn: TMouseButton; x, y: int): bool
-    onFocus*: proc(G:PWIDGET; GAINED:BOOL)
+    onFocus*: proc(G:PWidget; GAINED:bool)
     onTextEntered*: proc(G:PWidget; unicode:cint): bool
 
 proc `$` (r: TFloatRect): string = 
@@ -70,10 +70,10 @@ proc getBB*(g: PWidget): TFloatRect {.inline.}=
   result = g.vtable.getBB(g)
 proc onClick (g: PWidget; btn: TMouseButton; x, y: int): bool {.inline.}=
   result = g.vtable.onClick(g, btn, x,y)
-proc onTextEntered (G:PWIDGET; UNICODE:CINT): BOOL {.inline.} = 
-  result = g.vtable.onTextEntered(g, unicode)
-proc onFocus (G:PWIDGET; GAINED:BOOL) {.inline.}=
-  g.vtable.onFocus(g,gained)
+proc onTextEntered (G:PWIDGET; UNICODE:cint): bool {.inline.} = 
+  result = G.vtable.onTextEntered(G, Unicode)
+proc onFocus (G:PWIDGET; GAINED:bool) {.inline.}=
+  G.vtable.onFocus(G,Gained)
 
 proc `update_f=`* (g:PWidget; f:proc(g:PWidget)) {.inline.} =
   g.callbacks.update = f 
@@ -97,18 +97,18 @@ proc dispatch* (g: PWidget; evt: var TEvent): bool =
     else:
       result = g.onTextEntered(evt.text.unicode)
   else:
-    #
+    discard
 
 
 var
   defaultVT * = TWidgetVT()
 
-defaultVT.draw = proc(G: PWidget; W: PRenderWindow) =
+defaultVT.draw = proc(g: PWidget; w: PRenderWindow) =
   if not(g.sons.isNil):
     for s in g.sons: draw(s, w)
 defaultVT.setPos = proc(G: PWidget; P: TPoint2d) =
   discard
-defaultVT.getBB = proc(G: PWidget):TFloatRect = 
+defaultVT.getBB = proc(g: PWidget):TFloatRect = 
   if not(g.sons.isNil) and g.sons.len > 0:
     result = g.sons[0].getBB
     for i in 1 .. g.sons.len - 1:
@@ -119,15 +119,15 @@ defaultVT.onClick = proc (g: PWidget; btn: TMouseButton; x, y: int): bool =
     for id in countdown(high(g.sons), 0):
       if g.sons[id].onClick(btn,x,y):
         return true
-defaultVT.onTextEntered = proc(G:PWIDGET; UNICODE:CINT):BOOL =
+defaultVT.onTextEntered = proc(g:PWIDGET; uNICODE:cint):bool =
   if not g.sons.isNil:
     for id in countdown(high(g.sons), 0):
       if g.sons[id].onTextEntered(unicode):
         return true
-defaultVT.onFocus = proc(G:PWIDGET;GAINED:BOOL) =
+defaultVT.onFocus = proc(G:PWIDGET;GAINED:bool) =
   discard
 
-proc default_update (G:PWidget) =
+proc default_update (g:PWidget) =
   if not g.sons.isNil:
     for widget in g.sons:
       update(widget)
@@ -141,11 +141,11 @@ proc init* (g: PWidget; sons = 0) =
   if g.sons.isNil: g.sons.newSeq sons
 
 
-proc takeFocus* (W:PWIDGET) =
+proc takeFocus* (w:PWIDGET) =
   if w.master.isNil:
     return
   if w.master.hasFocus.has: w.master.hasFocus.val.onFocus(false)
-  w.master.hasFocus = just(w)
+  w.master.hasFocus = Just(w)
   w.onFocus true
 
 proc newWidget*: PWidget =
@@ -169,7 +169,7 @@ type
 var defaultFontSettings*: TFontSettings
 defaultFontSettings.font = defaultFont
 defaultFontSettings.characterSize = 18
-defaultFontSettings.color = white
+defaultFontSettings.color = White
 proc newText* (settings: TFontSettings; str = ""): PText = 
   result = newText(str, settings.font, settings.characterSize.cint)
   result.setColor settings.color
@@ -216,11 +216,11 @@ proc newUL* (padding = 2.0) : PWidget =
 type WidgetHL* = ref object of PWidget
   padding*: float
 var hlVT = defaultVT
-hlVT.setPos = proc(G:PWidget; P:TPoint2d)=
+hlVT.setPos = proc(g:PWidget; p:TPoint2d)=
   var pos = p
   for c in g.sons:
     c.setPos pos
-    pos.x += c.getBB.width + g.widgetHL.padding
+    pos.x += c.getBB.width + g.WidgetHL.padding
 
 proc newHL* (padding = 2.0) : PWidget =
   result = WidgetHL(padding: padding, vtable: hlVT.addr)
@@ -237,12 +237,12 @@ hideableVT.draw = proc(g: PWidget; w: PRenderWindow)=
 hideableVT.setPos = proc(g: PWidget; p: TPoint2d)=
   g.child.setPos p
 hideableVT.getBB = proc (g: PWidget): TFloatRect=
-  G.child.getBB
+  g.child.getBB
 hideableVT.onClick = proc(g:PWidget; btn:TMouseButton;x,y:int): bool =
   if g.WidgetHideable.visible:
     result = defaultVT.onClick(g, btn,x,y)
-hideableVT.onTextEntered = proc(G:PWIDGET; UNICODE:CINT):BOOL =
-  if g.widgethideable.visible:
+hideableVT.onTextEntered = proc(g:PWIDGET; unicode:cint):bool =
+  if g.WidgetHideable.visible:
     result = defaultVT.onTextEntered(g,unicode)
 
 proc hideable*(w: PWidget; visible = true): WidgetHideable =
@@ -257,16 +257,16 @@ type
     cb*: proc()
 
 var clckVT = defaultVT
-clckVT.draw = proc(G: PWidget; w: PRenderWindow) =
+clckVT.draw = proc(g: PWidget; w: PRenderWindow) =
   g.sons[0].draw w
-clckVT.getBB = proc(G: PWidget):TFloatRect=
+clckVT.getBB = proc(g: PWidget):TFloatRect=
   g.sons[0].getBB
-clckVT.onClick = proc(G:PWidget; btn:TMouseButton;x,y:int):bool=
+clckVT.onClick = proc(g:PWidget; btn:TMouseButton;x,y:int):bool=
   if (x,y) in g.getBB:
     g.WidgetClickable.cb()
     result = true
-clckVT.setPos = proc(G:PWidget; p:TPoint2d)=
-  G.sons[0].setPos p
+clckVT.setPos = proc(g:PWidget; p:TPoint2d)=
+  g.sons[0].setPos p
 
 proc onClick*(w: PWidget; f: proc()): WidgetClickable=
   result = WidgetClickable(
@@ -290,21 +290,21 @@ type PTextfieldWidget* = ref object of PWidget
 
 
 proc updateSFtext (G:PTextfieldWidget) =
-  G.child.widgetText.text.setString G.Text
+  G.child.WidgetText.text.setString G.text
 proc setText* (G:PTextfieldWidget; text:string) =
   G.text = text
   G.updateSfText()
 
 var tfWidget = defaultVT
-tfWidget.draw = proc(G:PWIDGET; W:PRenderWindow)=
+tfWidget.draw = proc(g:PWIDGET; w:PRenderWindow)=
   g.child.draw w
-tfWidget.setPos = proc(G:PWIDGET; POS:TPOINT2D) = 
-  G.child.setPos pos
+tfWidget.setPos = proc(g:PWIDGET; pos:TPOINT2D) = 
+  g.child.setPos pos
   
-tfWidget.onTextEntered = proc(G: PWidget; unicode: cint): bool =
-  let g = g.ptextfieldwidget
+tfWidget.onTextEntered = proc(g: PWidget; unicode: cint): bool =
+  let g = g.Ptextfieldwidget
   if unicode == '\b'.ord:
-    if G.cursor > 0:
+    if g.cursor > 0:
       # delet
       if g.cursor > g.text.len: g.cursor = g.text.len
       let rem = g.text[g.cursor .. -1]
@@ -315,23 +315,22 @@ tfWidget.onTextEntered = proc(G: PWidget; unicode: cint): bool =
       result = true
   elif unicode < 256 and unicode.char in g.chars:
     let c = unicode.char
-    let g = g.ptextfieldwidget
     g.text.add c
     g.updatesftext
     inc g.cursor
     result = true
 
-tfWidget.onFocus = proc(G:PWIDGET; GAINED:BOOL) =
-  let G = G.PTEXTFIELDWIDGET
-  if not GAINED and g.text == "":
+tfWidget.onFocus = proc(g:PWIDGET; gained:bool) =
+  let g = g.PTEXTFIELDWIDGET
+  if not gained and g.text == "":
     g.setText g.originalText
   elif gained and g.clearOnClick.has and g.text == g.originalText:
     g.setText ""
 
 
-tfWidget.getBB = proc(G:PWidget):TFloatRect =
+tfWidget.getBB = proc(g:PWidget):TFloatRect =
   result = g.child.getBB
-tfWidget.onClick = proc(G:PWIDGET; BTN:TMOUSEBUTTON;X,Y:INT): BOOL =
+tfWidget.onClick = proc(g:PWIDGET; BTN:TMOUSEBUTTON; x,y:int): bool =
   if (x,y) in g.getBB:
     # take focus
     g.takeFocus
@@ -344,6 +343,7 @@ proc textfield*(defaultText: string;
         clearOnClick = true): PTextfieldWidget =
   new(result) do (X:PTextfieldWidget):
     #destroy x.sfText
+    discard
   #result.sfText = fontSettings.newText
   result.vtable = tfWidget.addr
   result.sons = @[ textWidget(defaultText, fontSettings).PWidget ]
